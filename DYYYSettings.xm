@@ -859,7 +859,7 @@ static AWESettingSectionModel* createSection(NSString* title, NSArray* items) {
                     @{@"identifier": @"DYYYHideGiftPavilion", @"title": @"隐藏礼物展馆", @"detail": @"", @"cellType": @6, @"imageName": @"ic_eyeslash_outlined_16"}
                     
                 ];
-                for (NSDictionary *dict in messageAndMineSettings) {
+                for (NSDictionary *dict in livestreamItems) {
                     AWESettingItemModel *item = [self createSettingItem:dict];
                     [messageAndMineItems addObject:item];
                 }
