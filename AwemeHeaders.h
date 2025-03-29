@@ -113,7 +113,7 @@ typedef NS_ENUM(NSInteger, MediaType) {
 @interface AWENormalModeTabBarGeneralButton : UIButton
 @end
 
-@interface AWETopTabItemBadgeContentView : UIView
+@interface AWEHPTopTabItemBadgeContentView : UIView
 @end
 
 @interface AWEProgressLoadingView : UIView
