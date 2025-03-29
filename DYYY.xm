@@ -967,10 +967,20 @@
 
 //隐藏顶栏红点
 %hook AWETopTabItemBadgeContentView
-- (id)showBadgeWithBadgeStyle:(NSUInteger)style badgeConfig:(id)config count:(NSInteger) text:(id){
-    
-    return;
+- (id)showBadgeWithBadgeStyle:(NSUInteger)style 
+                 badgeConfig:(id)config 
+                       count:(NSInteger)count 
+                        text:(id)text 
+{
+    BOOL hideBadge = [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideTopBarBadge"]; 
+    if (hideBadge) {
+        return nil;
+    } else {
+        return %orig(style, config, count, text);
+    }
 }
+
+%end
 
 //移除共创头像列表
 %hook AWEPlayInteractionCoCreatorNewInfoView
