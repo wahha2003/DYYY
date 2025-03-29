@@ -951,6 +951,18 @@
 }
 %end
 
+//隐藏直播广场
+%hook IESLiveFeedDrawerEntranceView
+- (void)layoutSubviews {
+    %orig;
+
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideLivePlayground"]) {
+        self.hidden = YES;
+    }
+}
+
+%end
+
 //移除同城吃喝玩乐提示框
 %hook AWENearbySkyLightCapsuleView
 - (void)layoutSubviews {
