@@ -3760,6 +3760,17 @@ static BOOL isDownloadFlied = NO;
 }
 %end
 
+//隐藏礼物展馆
+%hook WKScrollView
+- (void)layoutSubviews {
+    %orig;
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideGiftPavilion"]) {
+        self.hidden = YES;
+    }
+}
+
+%end
+
 %ctor {
     %init(DYYYSettingsGesture);
     if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYUserAgreementAccepted"]) {
