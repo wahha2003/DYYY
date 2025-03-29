@@ -820,8 +820,6 @@ static AWESettingSectionModel* createSection(NSString* title, NSArray* items) {
                     @{@"identifier": @"DYYYHideNearbyCapsuleView", @"title": @"隐藏吃喝玩乐", @"detail": @"", @"cellType": @6, @"imageName": @"ic_eyeslash_outlined_16"},
                     @{@"identifier": @"DYYYHideDiscover", @"title": @"隐藏右上搜索", @"detail": @"", @"cellType": @6, @"imageName": @"ic_eyeslash_outlined_16"},
                     @{@"identifier": @"DYYYHideInteractionSearch", @"title": @"隐藏相关搜索", @"detail": @"", @"cellType": @6, @"imageName": @"ic_eyeslash_outlined_16"},
-                    @{@"identifier": @"DYYYHideEnterLive", @"title": @"隐藏进入直播", @"detail": @"", @"cellType": @6, @"imageName": @"ic_eyeslash_outlined_16"},
-                    @{@"identifier": @"DYYYHideLivePlayground", @"title": @"隐藏直播广场", @"detail": @"", @"cellType": @6, @"imageName": @"ic_eyeslash_outlined_16"},
                     @{@"identifier": @"DYYYHideDanmuButton", @"title": @"隐藏弹幕按钮", @"detail": @"", @"cellType": @6, @"imageName": @"ic_eyeslash_outlined_16"},
                     @{@"identifier": @"DYYYHideCancelMute", @"title": @"隐藏静音按钮", @"detail": @"", @"cellType": @6, @"imageName": @"ic_eyeslash_outlined_16"},
                     @{@"identifier": @"DYYYHideLocation", @"title": @"隐藏视频定位", @"detail": @"", @"cellType": @6, @"imageName": @"ic_eyeslash_outlined_16"},
@@ -845,15 +843,27 @@ static AWESettingSectionModel* createSection(NSString* title, NSArray* items) {
                     @{@"identifier": @"DYYYHideTemplateGroup", @"title": @"隐藏底部话题", @"detail": @"", @"cellType": @6, @"imageName": @"ic_eyeslash_outlined_16"},
                     @{@"identifier": @"DYYYHideCameraLocation", @"title": @"隐藏相机定位", @"detail": @"", @"cellType": @6, @"imageName": @"ic_eyeslash_outlined_16"},
                     @{@"identifier": @"DYYYHideLiveCapsuleView", @"title": @"隐藏直播胶囊", @"detail": @"", @"cellType": @6, @"imageName": @"ic_eyeslash_outlined_16"},
-                    @{@"identifier": @"DYYYHideStoryProgressSlide", @"title": @"隐藏视频滑条", @"detail": @"", @"cellType": @6, @"imageName": @"ic_eyeslash_outlined_16"},
-                    @{@"identifier": @"DYYYHideGiftPavilion", @"title": @"隐藏礼物展馆", @"detail": @"", @"cellType": @6, @"imageName": @"ic_eyeslash_outlined_16"}
+                    @{@"identifier": @"DYYYHideStoryProgressSlide", @"title": @"隐藏视频滑条", @"detail": @"", @"cellType": @6, @"imageName": @"ic_eyeslash_outlined_16"}
                 ];
                 
                 for (NSDictionary *dict in infoSettings) {
                     AWESettingItemModel *item = [self createSettingItem:dict];
                     [infoItems addObject:item];
                 }
-                
+
+                // 【直播界面净化】分类
+                NSMutableArray<AWESettingItemModel *> *livestreamItems = [NSMutableArray array];
+                NSArray *messageAndMineSettings = @[
+                    @{@"identifier": @"DYYYHideLivePlayground", @"title": @"隐藏直播广场", @"detail": @"", @"cellType": @6, @"imageName": @"ic_eyeslash_outlined_16"},
+                    @{@"identifier": @"DYYYHideEnterLive", @"title": @"隐藏进入直播", @"detail": @"", @"cellType": @6, @"imageName": @"ic_eyeslash_outlined_16"},
+                    @{@"identifier": @"DYYYHideGiftPavilion", @"title": @"隐藏礼物展馆", @"detail": @"", @"cellType": @6, @"imageName": @"ic_eyeslash_outlined_16"}
+                    
+                ];
+                for (NSDictionary *dict in messageAndMineSettings) {
+                    AWESettingItemModel *item = [self createSettingItem:dict];
+                    [messageAndMineItems addObject:item];
+                }
+
                 // 创建并组织所有section
                 NSMutableArray *sections = [NSMutableArray array];
                 [sections addObject:createSection(@"主界面元素", mainUiItems)];
@@ -861,6 +871,7 @@ static AWESettingSectionModel* createSection(NSString* title, NSArray* items) {
                 [sections addObject:createSection(@"侧边栏元素", sidebarItems)];
                 [sections addObject:createSection(@"消息页与我的页", messageAndMineItems)];
                 [sections addObject:createSection(@"提示与位置信息", infoItems)];
+                [sections addObject:createSection(@"直播间界面", livestreamItems)];
                 
                 // 创建并推入二级设置页面
                 AWESettingBaseViewController *subVC = createSubSettingsViewController(@"隐藏设置", sections);
