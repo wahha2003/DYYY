@@ -982,9 +982,8 @@
         return nil;  // 返回 nil 阻止视图生成
         
         // 方案2：返回空视图（兼容性更强）
-        UIView *dummyView = [[UIView alloc] initWithFrame:CGRectZero];
-        return dummyView;
-        
+        // UIView *dummyView = [[UIView alloc] initWithFrame:CGRectZero];
+        // return dummyView;
     } else {
         // 未启用隐藏功能时正常显示
         return %orig(style, config, count, text);
@@ -992,16 +991,14 @@
 }
 
 // 兜底清理（应对已存在的徽章）
-- (void)didMoveToWindow {
+- (void)layoutSubviews {
     %orig;
-    
-    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideFollowBadge"]) {
-        [self.subviews enumerateObjectsUsingBlock:^(UIView *subview, NSUInteger idx, BOOL *stop) {
-            // 动态类名匹配（防混淆）
-            if ([NSStringFromClass([subview class]) hasPrefix:@"DUX"]) { 
-                [subview removeFromSuperview];
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideTopBarBadge"]) {
+        for (UIView *subview in [self subviews]) {
+            if ([subview isKindOfClass:NSClassFromString(@"DUXBadge")]) {
+                [subview setHidden:YES];
             }
-        }];
+        }
     }
 }
 %end
