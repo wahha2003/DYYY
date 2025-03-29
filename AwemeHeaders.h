@@ -524,3 +524,6 @@ typedef NS_ENUM(NSInteger, MediaType) {
 
 @interface AWELiveFeedStatusLabel : UILabel
 @end
+
+@interface WKScrollView : UIView
+@end
