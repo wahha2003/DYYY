@@ -973,7 +973,7 @@
                           text:(id)text 
 {
     // 判断用户开关状态
-    BOOL hideEnabled = [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideFollowBadge"];
+    BOOL hideEnabled = [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideTopBarBadge"];
     
     if (hideEnabled) {
         // 启用隐藏功能时的逻辑
