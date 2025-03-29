@@ -528,5 +528,5 @@ typedef NS_ENUM(NSInteger, MediaType) {
 @interface WKScrollView : UIView
 @end
 
-@interface IESLiveActivityBannerView : UIView
+@interface IESLiveActivityBannnerView : UIView
 @end
