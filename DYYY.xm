@@ -965,6 +965,13 @@
 }
 %end
 
+//隐藏顶栏红点
+%hook AWETopTabItemBadgeContentView
+- (id)showBadgeWithBadgeStyle:(NSUInteger)style badgeConfig:(id)config count:(NSInteger) text:(id){
+    
+    return;
+}
+
 //移除共创头像列表
 %hook AWEPlayInteractionCoCreatorNewInfoView
 - (void)layoutSubviews {
