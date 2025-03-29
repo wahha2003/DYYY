@@ -3771,6 +3771,16 @@ static BOOL isDownloadFlied = NO;
 
 %end
 
+%hook IESLiveActivityBannerView
+- (void)layoutSubviews {
+    %orig;
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideGiftPavilion"]) {
+        self.hidden = YES;
+    }
+}
+
+%end
+
 %ctor {
     %init(DYYYSettingsGesture);
     if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYUserAgreementAccepted"]) {
