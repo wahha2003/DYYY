@@ -113,6 +113,9 @@ typedef NS_ENUM(NSInteger, MediaType) {
 @interface AWENormalModeTabBarGeneralButton : UIButton
 @end
 
+@interface AWETopTabItemBadgeContentView : UIView
+@end
+
 @interface AWEProgressLoadingView : UIView
 - (id)initWithType:(NSInteger)arg1 title:(NSString *)arg2;
 - (id)initWithType:(NSInteger)arg1 title:(NSString *)arg2 progressTextFont:(UIFont *)arg3 progressCircleWidth:(NSNumber *)arg4;
