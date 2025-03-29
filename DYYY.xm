@@ -966,7 +966,7 @@
 %end
 
 //隐藏顶栏红点
-%hook AWETopTabItemBadgeContentView
+%hook AWEHPTopTabItemBadgeContentView
 - (id)showBadgeWithBadgeStyle:(NSUInteger)style 
                   badgeConfig:(id)config 
                          count:(NSInteger)count 
@@ -987,18 +987,6 @@
     } else {
         // 未启用隐藏功能时正常显示
         return %orig(style, config, count, text);
-    }
-}
-
-// 兜底清理（应对已存在的徽章）
-- (void)layoutSubviews {
-    %orig;
-    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideTopBarBadge"]) {
-        for (UIView *subview in [self subviews]) {
-            if ([subview isKindOfClass:NSClassFromString(@"DUXBadge")]) {
-                [subview setHidden:YES];
-            }
-        }
     }
 }
 %end
