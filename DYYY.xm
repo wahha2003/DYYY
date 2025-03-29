@@ -3771,7 +3771,7 @@ static BOOL isDownloadFlied = NO;
 
 %end
 
-%hook IESLiveActivityBannerView
+%hook IESLiveActivityBannnerView
 - (void)layoutSubviews {
     %orig;
     if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideGiftPavilion"]) {
