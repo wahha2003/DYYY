@@ -853,7 +853,7 @@ static AWESettingSectionModel* createSection(NSString* title, NSArray* items) {
 
                 // 【直播界面净化】分类
                 NSMutableArray<AWESettingItemModel *> *livestreamItems = [NSMutableArray array];
-                NSArray *livestreamItems = @[
+                NSArray *livestreamSettings = @[
                     @{@"identifier": @"DYYYHideLivePlayground", @"title": @"隐藏直播广场", @"detail": @"", @"cellType": @6, @"imageName": @"ic_eyeslash_outlined_16"},
                     @{@"identifier": @"DYYYHideEnterLive", @"title": @"隐藏进入直播", @"detail": @"", @"cellType": @6, @"imageName": @"ic_eyeslash_outlined_16"},
                     @{@"identifier": @"DYYYHideGiftPavilion", @"title": @"隐藏礼物展馆", @"detail": @"", @"cellType": @6, @"imageName": @"ic_eyeslash_outlined_16"}
@@ -861,7 +861,7 @@ static AWESettingSectionModel* createSection(NSString* title, NSArray* items) {
                 ];
                 for (NSDictionary *dict in livestreamSettings) {
                     AWESettingItemModel *item = [self createSettingItem:dict];
-                    [messageAndMineItems addObject:item];
+                    [livestreamItems addObject:item];
                 }
 
                 // 创建并组织所有section
