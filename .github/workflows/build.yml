@@ -1,7 +1,7 @@
-name: build deb
+name: Builder
 
 on: 
-  workflow_dispatch:
+  workflow_dispatch:  # 手动触发开关
 
 jobs:
   build:
@@ -10,47 +10,81 @@ jobs:
     steps:
       - uses: actions/checkout@v4.2.2
         with:
-          submodules: true
+          submodules: recursive  # 确保子模块初始化
 
-      - name: Check cache
+      - name: Setup build environment
         run: |
-          echo upstream_heads=`git ls-remote https://github.com/roothide/theos | head -n 1 | cut -f 1`-`git ls-remote https://github.com/theos/sdks | head -n 1 | cut -f 1` >> $GITHUB_ENV
+          # 安装必要依赖
+          brew install coreutils findutils
+          echo "$(brew --prefix)/opt/make/libexec/gnubin" >> $GITHUB_PATH
 
-      - name: Use cache
-        id: cache
+      - name: Cache Theos
         uses: actions/cache@v4.2.1
         with:
           path: ${{ github.workspace }}/theos
-          key: ${{ runner.os }}-${{ env.upstream_heads }}
+          key: ${{ runner.os }}-theos-${{ hashFiles('**/Makefile') }}
 
       - name: Prepare Theos
         uses: huami1314/theos-action@main
+        with:
+          submodules: true
 
-      - name: Setup GNU Make
+      - name: Build ARM64 packages
         run: |
-          echo "$(brew --prefix)/opt/make/libexec/gnubin" >> $GITHUB_PATH
+          # 清理并创建标准输出目录
+          rm -rf artifacts && mkdir -p artifacts
 
-      - name: Build package
+          # 主包构建
+          make package \
+            ARCHS=arm64 \
+            FINALPACKAGE=1 \
+            THEOS_PACKAGE_DIR=artifacts \
+            -j$(sysctl -n hw.ncpu)
+
+          # Rootless 变体
+          make package \
+            THEOS_PACKAGE_SCHEME=rootless \
+            ARCHS=arm64 \
+            FINALPACKAGE=1 \
+            THEOS_PACKAGE_DIR=artifacts \
+            -j$(sysctl -n hw.ncpu)
+
+          # Roothide 变体
+          make package \
+            THEOS_PACKAGE_SCHEME=roothide \
+            ARCHS=arm64 \
+            FINALPACKAGE=1 \
+            THEOS_PACKAGE_DIR=artifacts \
+            -j$(sysctl -n hw.ncpu)
+
+          # 添加架构标识到文件名
+          cd artifacts
+          for f in *.deb; do 
+            mv "$f" "${f%.deb}_arm64.deb"
+          done
+
+      - name: Collect dynamic libraries
         run: |
-          rm -rf packages/*
-          # 强制输出目录结构（调试用）
-          mkdir -p packages
-          # 构建时显式指定输出目录
-          make package ARCHS=arm64 FINALPACKAGE=1 THEOS_PACKAGE_DIR=packages -j$(sysctl -n hw.ncpu)
-          make package THEOS_PACKAGE_SCHEME=rootless ARCHS=arm64 FINALPACKAGE=1 THEOS_PACKAGE_DIR=packages -j$(sysctl -n hw.ncpu)
-          make package THEOS_PACKAGE_SCHEME=roothide ARCHS=arm64 FINALPACKAGE=1 THEOS_PACKAGE_DIR=packages -j$(sysctl -n hw.ncpu)
+          # 递归搜索dylib文件
+          find ${{ github.workspace }} -name "*.dylib" -exec cp {} artifacts/ \;
 
-      - name: Collect dylibs
-        run: |
-          # 递归查找dylib并复制到packages目录
-          find ${{ github.workspace }} -name "*.dylib" -exec cp {} packages/ \;
-          # 调试：显示产物目录结构
-          ls -R packages
+          # 调试：显示最终产物
+          echo "=== Build Artifacts ==="
+          ls -lh artifacts/
+          echo "======================"
 
-      - name: Upload artifacts
+      - name: Upload DEB Packages
         uses: actions/upload-artifact@v4.6.0
         with:
-          name: DYYY
-          path: |
-            ${{ github.workspace }}/packages/*.deb
-            ${{ github.workspace }}/packages/*.dylib
+          name: ARM64-DEB
+          path: ${{ github.workspace }}/artifacts/*_arm64.deb
+          compression-level: 0  # 禁用压缩
+          if-no-files-found: error  # 严格模式
+
+      - name: Upload DYLIB Files
+        uses: actions/upload-artifact@v4.6.0
+        with:
+          name: ARM64-DYLIB
+          path: ${{ github.workspace }}/artifacts/*.dylib
+          compression-level: 0
+          if-no-files-found: warn  # 动态库可能不存在时警告但不失败
