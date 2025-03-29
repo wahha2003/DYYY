@@ -1,8 +1,7 @@
 name: build deb
 
 on: 
-  push:
-  pull_request:
+  workflow_dispatch:
 
 jobs:
   build:
@@ -33,13 +32,25 @@ jobs:
 
       - name: Build package
         run: |
-          rm -f packages/*
-          make package FINALPACKAGE=1 -j$(sysctl -n hw.ncpu)
-          make package THEOS_PACKAGE_SCHEME=rootless FINALPACKAGE=1 -j$(sysctl -n hw.ncpu)
-          make package THEOS_PACKAGE_SCHEME=roothide FINALPACKAGE=1 -j$(sysctl -n hw.ncpu)
+          rm -rf packages/*
+          # 强制输出目录结构（调试用）
+          mkdir -p packages
+          # 构建时显式指定输出目录
+          make package ARCHS=arm64 FINALPACKAGE=1 THEOS_PACKAGE_DIR=packages -j$(sysctl -n hw.ncpu)
+          make package THEOS_PACKAGE_SCHEME=rootless ARCHS=arm64 FINALPACKAGE=1 THEOS_PACKAGE_DIR=packages -j$(sysctl -n hw.ncpu)
+          make package THEOS_PACKAGE_SCHEME=roothide ARCHS=arm64 FINALPACKAGE=1 THEOS_PACKAGE_DIR=packages -j$(sysctl -n hw.ncpu)
 
-      - name: Upload specific Deb packages
+      - name: Collect dylibs
+        run: |
+          # 递归查找dylib并复制到packages目录
+          find ${{ github.workspace }} -name "*.dylib" -exec cp {} packages/ \;
+          # 调试：显示产物目录结构
+          ls -R packages
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4.6.0
         with:
           name: DYYY
-          path: ${{ github.workspace }}/packages/*.deb
+          path: |
+            ${{ github.workspace }}/packages/*.deb
+            ${{ github.workspace }}/packages/*.dylib
