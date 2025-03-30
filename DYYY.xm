@@ -19,18 +19,7 @@
 + (void)parseAndDownloadVideoWithShareLink:(NSString *)shareLink apiKey:(NSString *)apiKey;
 + (void)batchDownloadResources:(NSArray *)videos images:(NSArray *)images;
 @end
-
-@interface AWEUserActionSheetView : UIView
-- (instancetype)init;
-- (void)setActions:(NSArray *)actions;
-- (void)show;
-@end
-
-@interface AWEUserSheetAction : NSObject
-+ (instancetype)actionWithTitle:(NSString *)title imgName:(NSString *)imgName handler:(id)handler;
-+ (instancetype)actionWithTitle:(NSString *)title style:(NSUInteger)style imgName:(NSString *)imgName handler:(id)handler;
-@end
-
+                                                                                                                                                                       
 %hook AWEAwemePlayVideoViewController
 
 - (void)setIsAutoPlay:(BOOL)arg0 {
@@ -58,8 +47,7 @@
 
 %hook AWEFeedContainerContentView
 - (void)setAlpha:(CGFloat)alpha {
-    NSString *transparentValue = [[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYtopbartransparent"];
-    
+    // 纯净模式功能保持不变
     if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYisEnablePure"]) {
         %orig(0.0);
         
@@ -106,6 +94,8 @@
         return;
     }
     
+    // 原来的透明度设置逻辑，保持不变
+    NSString *transparentValue = [[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYtopbartransparent"];
     if (transparentValue && transparentValue.length > 0) {
         CGFloat alphaValue = [transparentValue floatValue];
         if (alphaValue >= 0.0 && alphaValue <= 1.0) {
@@ -117,8 +107,7 @@
         %orig(1.0);
     }
 }
-
-%new
+// 这个方法应该属于 AWEFeedContainerContentView 类
 - (UIViewController *)findViewController:(UIViewController *)vc ofClass:(Class)targetClass {
     if (!vc) return nil;
     if ([vc isKindOfClass:targetClass]) return vc;
@@ -129,6 +118,35 @@
     }
     
     return [self findViewController:vc.presentedViewController ofClass:targetClass];
+}
+%end
+// 添加新的 hook 来专门处理顶栏透明度
+%hook AWEHPTopBarCTAContainer
+- (void)layoutSubviews {
+    %orig;
+    [self applyDYYYTransparency];
+}
+- (void)didMoveToSuperview {
+    %orig;
+    [self applyDYYYTransparency];
+}
+%new
+- (void)applyDYYYTransparency {
+    // 如果启用了纯净模式，不做任何处理
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYisEnablePure"]) {
+        return;
+    }
+    
+    NSString *transparentValue = [[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYtopbartransparent"];
+    if (transparentValue && transparentValue.length > 0) {
+        CGFloat alphaValue = [transparentValue floatValue];
+        if (alphaValue >= 0.0 && alphaValue <= 1.0) {
+            // 使用类型转换确保编译器知道这是一个 UIView
+            [(UIView *)self setAlpha:alphaValue];
+            
+            // 移除了透明度为0时的特殊处理，避免按钮消失无法点击
+        }
+    }
 }
 %end
 
@@ -281,11 +299,6 @@
 - (void)setCenter:(CGPoint)center {
     if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYisEnableFullScreen"] || [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYisEnableCommentBlur"]) {
         center.y += 60;
-    }
-    
-    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYisHiddenEntry"]) {
-        self.hidden = YES;
-	
     }
 
     %orig(center);
@@ -637,20 +650,7 @@
             }
         }
 
-        BOOL isDarkMode = YES;
-
-        UILabel *commentLabel = [self findCommentLabel:self.view];
-        if (commentLabel) {
-            UIColor *textColor = commentLabel.textColor;
-            CGFloat red, green, blue, alpha;
-            [textColor getRed:&red green:&green blue:&blue alpha:&alpha];
-
-            if (red > 0.7 && green > 0.7 && blue > 0.7) {
-                isDarkMode = YES;
-            } else if (red < 0.3 && green < 0.3 && blue < 0.3) {
-                isDarkMode = NO;
-            }
-        }
+        BOOL isDarkMode = [DYYYManager isDarkMode];
 
         UIBlurEffectStyle blurStyle = isDarkMode ? UIBlurEffectStyleDark : UIBlurEffectStyleLight;
 
@@ -1496,61 +1496,18 @@
 
 %end
 
-%hook UITextInputTraits
-- (void)setKeyboardAppearance:(UIKeyboardAppearance)appearance {
-    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYisDarkKeyBoard"]) {
-        %orig(UIKeyboardAppearanceDark);
-    }else {
-        %orig;
-    }
-}
-%end
-
-%hook AWECommentMiniEmoticonPanelView
-
-- (void)layoutSubviews {
-    %orig;
-    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYisDarkKeyBoard"]) {
-        
-        for (UIView *subview in self.subviews) {
-            if ([subview isKindOfClass:[UICollectionView class]]) {
-                subview.backgroundColor = [UIColor colorWithRed:115/255.0 green:115/255.0 blue:115/255.0 alpha:1.0];
-            }
-        }
-    }
-}
-%end
-
-%hook AWECommentPublishGuidanceView
-
-- (void)layoutSubviews {
-    %orig;
-    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYisDarkKeyBoard"]) {
-        
-        for (UIView *subview in self.subviews) {
-            if ([subview isKindOfClass:[UICollectionView class]]) {
-                subview.backgroundColor = [UIColor colorWithRed:115/255.0 green:115/255.0 blue:115/255.0 alpha:1.0];
-            }
-        }
-    }
-}
-%end
-
 %hook UIView
 - (void)layoutSubviews {
     %orig;
-    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYisDarkKeyBoard"]) {
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYisEnableCommentBlur"]) {
         for (UIView *subview in self.subviews) {
             if ([subview isKindOfClass:NSClassFromString(@"AWECommentInputViewSwiftImpl.CommentInputViewMiddleContainer")]) {
                 for (UIView *innerSubview in subview.subviews) {
                     if ([innerSubview isKindOfClass:[UIView class]]) {
-                        innerSubview.backgroundColor = [UIColor colorWithRed:31/255.0 green:33/255.0 blue:35/255.0 alpha:1.0];
+                        innerSubview.backgroundColor = [UIColor clearColor];
                         break;
                     }
                 }
-            }
-            if ([subview isKindOfClass:NSClassFromString(@"AWEIMEmoticonPanelBoxView")]) {
-                subview.backgroundColor = [UIColor colorWithRed:33/255.0 green:33/255.0 blue:33/255.0 alpha:1.0];
             }
         }
     }
@@ -1588,63 +1545,6 @@
         }
     }
 }
-%end
-
-%hook UILabel
-
-- (void)setText:(NSString *)text {
-    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYisDarkKeyBoard"]) {
-        if ([text hasPrefix:@"善语"] || [text hasPrefix:@"友爱评论"] || [text hasPrefix:@"回复"]) {
-            self.textColor = [UIColor colorWithRed:125/255.0 green:125/255.0 blue:125/255.0 alpha:0.6];
-        }
-    }
-    %orig;
-}
-
-%end
-
-%hook UIButton
-
-- (void)setImage:(UIImage *)image forState:(UIControlState)state {
-    NSString *label = self.accessibilityLabel;
-//    NSLog(@"Label -> %@",accessibilityLabel);
-    if ([label isEqualToString:@"表情"] || [label isEqualToString:@"at"] || [label isEqualToString:@"图片"] || [label isEqualToString:@"键盘"]) {
-        if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYisDarkKeyBoard"]) {
-            
-            UIImage *whiteImage = [image imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
-            
-            self.tintColor = [UIColor whiteColor];
-            
-            %orig(whiteImage, state);
-        }else {
-            %orig(image, state);
-        }
-    } else {
-        %orig(image, state);
-    }
-}
-
-%end
-
-%hook AWETextViewInternal
-
-- (void)drawRect:(CGRect)rect {
-    %orig(rect);
-    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYisDarkKeyBoard"]) {
-        
-        self.textColor = [UIColor whiteColor];
-    }
-}
-
-- (double)lineSpacing {
-    double r = %orig;
-    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYisDarkKeyBoard"]) {
-        
-        self.textColor = [UIColor whiteColor];
-    }
-    return r;
-}
-
 %end
 
 %hook AWEPlayInteractionUserAvatarElement
@@ -1692,10 +1592,6 @@
     return r;
 }
 %end
-
-@interface AWEFeedProgressSlider (CustomAdditions)
-- (void)applyCustomProgressStyle;
-@end
 
 // 然后是现有的 hook 实现
 %hook AWEFeedProgressSlider
@@ -1812,6 +1708,13 @@
         BOOL showRemainingTime = [scheduleStyle isEqualToString:@"进度条右侧剩余"];
         BOOL showCompleteTime = [scheduleStyle isEqualToString:@"进度条右侧完整"];
         
+        // 获取用户设置的时间标签颜色
+        NSString *labelColorHex = [[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYProgressLabelColor"];
+        UIColor *labelColor = [UIColor whiteColor]; // 默认白色
+        if (labelColorHex && labelColorHex.length > 0) {
+            labelColor = [DYYYManager colorWithHexString:labelColorHex];
+        }
+        
         // 只有在非"进度条右侧剩余"和非"进度条右侧完整"模式时创建左侧时间标签
         if (!showRemainingTime && !showCompleteTime) {
             // 创建左侧时间标签
@@ -1821,7 +1724,7 @@
                                          50, 15);
             leftLabel.backgroundColor = [UIColor clearColor];
             [leftLabel setText:@"00:00"];
-            [leftLabel setTextColor:[UIColor whiteColor]];
+            [leftLabel setTextColor:labelColor];
             [leftLabel setFont:[UIFont systemFontOfSize:8]];
             leftLabel.tag = 10001;
             [parentView addSubview:leftLabel];
@@ -1842,7 +1745,7 @@
             [rightLabel setText:showRemainingTime ? @"00:00" : duration];
         }
         rightLabel.backgroundColor = [UIColor clearColor];
-        [rightLabel setTextColor:[UIColor whiteColor]];
+        [rightLabel setTextColor:labelColor];
         [rightLabel setFont:[UIFont systemFontOfSize:8]];
         rightLabel.tag = 10002;
         [parentView addSubview:rightLabel];
@@ -1899,6 +1802,13 @@
         UILabel *leftLabel = [parentView viewWithTag:10001];
         UILabel *rightLabel = [parentView viewWithTag:10002];
         
+        // 获取用户设置的时间标签颜色
+        NSString *labelColorHex = [[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYProgressLabelColor"];
+        UIColor *labelColor = [UIColor whiteColor]; // 默认白色
+        if (labelColorHex && labelColorHex.length > 0) {
+            labelColor = [DYYYManager colorWithHexString:labelColorHex];
+        }
+        
         // 获取显示样式设置
         NSString *scheduleStyle = [[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYScheduleStyle"];
         BOOL showRemainingTime = [scheduleStyle isEqualToString:@"进度条右侧剩余"];
@@ -1907,6 +1817,7 @@
         //如果检测到时间
         if (arg1 > 0 && leftLabel) {
             [leftLabel setText:[self formatTimeFromSeconds:arg1]];
+            [leftLabel setTextColor:labelColor];
         }
         if (arg2 > 0 && rightLabel) {
             if (showRemainingTime) {
@@ -1920,6 +1831,7 @@
             } else {
                 [rightLabel setText:[self formatTimeFromSeconds:arg2]];
             }
+            [rightLabel setTextColor:labelColor];
         }
     }
 }
@@ -2866,9 +2778,6 @@ static CGFloat currentScale = 1.0;
 
 %end
 
-@interface AWEPlayInteractionDescriptionScrollView : UIScrollView
-@end
-
 %hook AWEPlayInteractionDescriptionScrollView
 
 - (void)layoutSubviews {
@@ -2917,8 +2826,6 @@ static CGFloat currentScale = 1.0;
 %end
 
 // 对新版文案的缩放（33.0以上）
-@interface AWEPlayInteractionDescriptionLabel : UILabel
-@end
 
 %hook AWEPlayInteractionDescriptionLabel
 
@@ -2966,9 +2873,6 @@ static CGFloat currentScale = 1.0;
 }
 
 %end
-
-@interface AWEUserNameLabel : UIView
-@end
 
 %hook AWEUserNameLabel
 
@@ -3747,8 +3651,6 @@ static BOOL isDownloadFlied = NO;
 %end
 
 //隐藏首页直播胶囊
-@interface AWEHPTopTabItemBadgeContentView : UIView
-@end
 %hook AWEHPTopTabItemBadgeContentView
 
 - (void)updateSmallRedDotLayout {
@@ -3849,8 +3751,6 @@ static BOOL isDownloadFlied = NO;
 %end
 
 //隐藏搜同款
-@interface ACCStickerContainerView : UIView
-@end
 %hook ACCStickerContainerView
 - (void)layoutSubviews {
     // 类型安全检查 + 隐藏逻辑
