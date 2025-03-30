@@ -489,18 +489,12 @@
             ![[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYDoubleTapLike"]) {
             
             AWEUserSheetAction *likeAction = [NSClassFromString(@"AWEUserSheetAction") 
-                                            actionWithTitle:@"点赞视频" 
-                                            imgName:nil 
-                                            handler:^{
-                %orig(arg0, arg1);
+                                             actionWithTitle:@"点赞视频" 
+                                             imgName:nil 
+                                             handler:^{
+                [self performLikeAction]; // 执行点赞操作
             }];
             [actions addObject:likeAction];
-        }
-        
-        // 如果没有任何功能项被选择，则执行默认行为
-        if (actions.count == 0) {
-            %orig;
-            return;
         }
         
         // 显示操作表
@@ -1026,6 +1020,96 @@
 
 %end
 
+// 隐藏评论搜索
+%hook AWECommentSearchAnchorView
+- (void)layoutSubviews {
+    %orig;
+    
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideCommentViews"]) {
+        [self setHidden:YES];
+    }
+}
+
+%end
+
+//隐藏评论定位
+%hook AWEPOIEntryAnchorView
+- (void)layoutSubviews {
+    %orig;
+    
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideCommentViews"]) {
+        [self setHidden:YES];
+    }
+}
+
+%end
+
+// 隐藏评论音乐
+%hook AWECommentGuideLunaAnchorView
+- (void)layoutSubviews {
+    %orig;
+    
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideCommentViews"]) {
+        [self setHidden:YES];
+    }
+}
+
+%end
+
+// Swift 类组 - 这些会在 %ctor 中动态初始化
+%group CommentHeaderGeneralGroup
+%hook AWECommentPanelHeaderSwiftImpl_CommentHeaderGeneralView
+- (void)layoutSubviews {
+    %orig;
+    
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideCommentViews"]) {
+        [self setHidden:YES];
+    }
+}
+%end
+%end
+%group CommentHeaderGoodsGroup
+%hook AWECommentPanelHeaderSwiftImpl_CommentHeaderGoodsView
+- (void)layoutSubviews {
+    %orig;
+    
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideCommentViews"]) {
+        [self setHidden:YES];
+    }
+}
+%end
+%end
+%group CommentHeaderTemplateGroup
+%hook AWECommentPanelHeaderSwiftImpl_CommentHeaderTemplateAnchorView
+- (void)layoutSubviews {
+    %orig;
+    
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideCommentViews"]) {
+        [self setHidden:YES];
+    }
+}
+%end
+%end
+// Swift 类初始化
+%ctor {
+    
+    // 动态获取 Swift 类并初始化对应的组
+    Class commentHeaderGeneralClass = objc_getClass("AWECommentPanelHeaderSwiftImpl.CommentHeaderGeneralView");
+    if (commentHeaderGeneralClass) {
+        %init(CommentHeaderGeneralGroup, AWECommentPanelHeaderSwiftImpl_CommentHeaderGeneralView = commentHeaderGeneralClass);
+    }
+    
+    Class commentHeaderGoodsClass = objc_getClass("AWECommentPanelHeaderSwiftImpl.CommentHeaderGoodsView");
+    if (commentHeaderGoodsClass) {
+        %init(CommentHeaderGoodsGroup, AWECommentPanelHeaderSwiftImpl_CommentHeaderGoodsView = commentHeaderGoodsClass);
+    }
+    
+    Class commentHeaderTemplateClass = objc_getClass("AWECommentPanelHeaderSwiftImpl.CommentHeaderTemplateAnchorView");
+    if (commentHeaderTemplateClass) {
+        %init(CommentHeaderTemplateGroup, AWECommentPanelHeaderSwiftImpl_CommentHeaderTemplateAnchorView = commentHeaderTemplateClass);
+    }
+}
+
 //隐藏校园提示
 %hook AWETemplateTagsCommonView
 
@@ -1058,6 +1142,19 @@
     %orig(forceHide ? YES : hidden); 
 }
 
+%end
+
+//去除“我的”加入挑战横幅
+%hook AWEPostWorkViewController
+- (BOOL)isDouGuideTipViewShow {
+    BOOL r = %orig;
+    NSLog(@"Original value: %@", @(r));
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideChallengeStickers"]) {
+        NSLog(@"Force return YES");
+        return YES;
+    }
+    return r;
+}
 %end
 
 //隐藏消息页顶栏头像气泡
@@ -3101,7 +3198,7 @@ static BOOL isDownloadFlied = NO;
 
 %hook AWEConcernSkylightCapsuleView
 - (void)setHidden:(BOOL)hidden {
-    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHidenConcernCapsuleView"]) {
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideConcernCapsuleView"]) {
         hidden = YES;
     }
 
@@ -3574,7 +3671,10 @@ static BOOL isDownloadFlied = NO;
 %hook AWEPlayInteractionViewController
 
 - (void)onVideoPlayerViewDoubleClicked:(id)arg1 {
-    if (![[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYDouble"]) %orig;
+    BOOL isSwitchOn = [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYDouble"];
+    if (!isSwitchOn) {
+        %orig;
+    }  
 }
 %end
 
@@ -3646,6 +3746,26 @@ static BOOL isDownloadFlied = NO;
 
 %end
 
+//隐藏首页直播胶囊
+@interface AWEHPTopTabItemBadgeContentView : UIView
+@end
+%hook AWEHPTopTabItemBadgeContentView
+
+- (void)updateSmallRedDotLayout {
+    %orig;
+    
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideLiveCapsuleView"]) {
+        UIView *parentView = self.superview; // 现在可以正确访问
+        if (parentView) {
+            parentView.hidden = YES;
+        } else {
+            self.hidden = YES;
+        }
+    }
+}
+
+%end
+
 //隐藏群商店
 %hook AWEIMFansGroupTopDynamicDomainTemplateView
 - (void)layoutSubviews {
@@ -3713,6 +3833,35 @@ static BOOL isDownloadFlied = NO;
         return NO; 
     }
     return %orig;
+}
+%end
+
+//隐藏侧栏红点
+%hook AWEHPTopBarCTAItemView
+
+- (void)showRedDot {
+    if (![[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYisHiddenSidebarDot"]) %orig;
+}
+
+- (void)hideCountRedDot {
+    if (![[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYisHiddenSidebarDot"]) %orig;
+}
+%end
+
+//隐藏搜同款
+@interface ACCStickerContainerView : UIView
+@end
+%hook ACCStickerContainerView
+- (void)layoutSubviews {
+    // 类型安全检查 + 隐藏逻辑
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideInteractionSearch"]) {
+        if ([self respondsToSelector:@selector(removeFromSuperview)]) {
+            [self removeFromSuperview];
+        }
+        self.hidden = YES; // 隐藏更彻底
+        return;
+    }
+    %orig;
 }
 %end
 
