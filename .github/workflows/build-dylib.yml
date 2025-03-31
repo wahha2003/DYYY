@@ -1,6 +1,9 @@
 name: Builde dylib
 
 on: 
+  push:
+    branches: 
+      -private
   workflow_dispatch:  # 手动触发开关
 jobs:
   build:
