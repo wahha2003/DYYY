@@ -589,3 +589,11 @@ typedef NS_ENUM(NSInteger, MediaType) {
 @interface AWEIMMessageListViewController : UIViewController
 - (void)recallMessage:(id)arg1;
 @end
+
+@interface AWEIMRecallMessage : NSObject
+@end
+
+@interface AWEIMMessage : NSObject
+-(void)setRecallMessage:(BOOL)arg1;
+@property (nonatomic, strong) AWEIMRecallMessage *recallMessage;
+@end

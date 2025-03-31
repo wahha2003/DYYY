@@ -3193,7 +3193,8 @@ static BOOL isDownloadFlied = NO;
 }
 %end
 
-%hook AWEConcernSkylightCapsuleView  //移除关注xx个直播
+//移除关注xx个直播
+%hook AWEConcernSkylightCapsuleView
 - (void)setHidden:(BOOL)hidden {
     if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideConcernCapsuleView"]) {
         [self removeFromSuperview];
@@ -3918,21 +3919,32 @@ static BOOL isDownloadFlied = NO;
 }
 %end
 
+// 防撤回
 %hook AWEIMMessageListViewController
 -(void)recallMessage:(id)arg1
 {
     BOOL hideEnabled = [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideRecallMessage"];
     if (hideEnabled) {
-        NSLog(@"[hook]参数 arg: %@", arg1);
-        NSLog(@"[hook]参数类型 %@", [arg1 class]);
+        NSLog(@"[hook]参数 arg: %@, 参数类型: %@. 已尝试阻断", arg1, [arg1 class]);
         return;
     }else{
-        NSLog(@"[hook]参数 arg: %@", arg1);
-        NSLog(@"[hook]参数类型 %@", [arg1 class]);
+        NSLog(@"[hook]参数 arg: %@, 参数类型: %@. 执行原逻辑", arg1, [arg1 class]);
         %orig(arg1);
     }
 }
 %end
+
+%hook AWEIMMessage
+-(void)setRecalld:(BOOL)arg1
+{
+    BOOL hideEnabled = [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideRecallMessage"];
+    if (hideEnabled) {
+        NSLog(@"[hook]参数 arg: %@, 参数类型: %@. 已尝试阻断", arg1, [arg1 class]);
+        return;
+    }else{
+        NSLog()
+    }
+}
 
 %ctor {
     %init(DYYYSettingsGesture);
