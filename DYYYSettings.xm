@@ -391,6 +391,22 @@ static AWESettingSectionModel* createSection(NSString* title, NSArray* items) {
     return section;
 }
 
+static void showUserAgreementAlert() {
+    showTextInputAlert(@"用户协议", @"", @"", ^(NSString *text) {
+            if ([text isEqualToString:@"我已阅读并同意继续使用"]) {
+                setUserDefaults(@"YES", @"DYYYUserAgreementAccepted");
+            } else {
+                [DYYYManager showToast:@"请正确输入内容"];
+                showUserAgreementAlert();
+            }
+        }, ^(void) {
+            [DYYYManager showToast:@"请立即卸载本插件"];
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                exit(0);
+            });
+        });
+}
+
 %hook AWESettingsViewModel
 - (NSArray *)sectionDataArray {
     NSArray *originalSections = %orig;
@@ -417,8 +433,8 @@ static AWESettingSectionModel* createSection(NSString* title, NSArray* items) {
             AWESettingBaseViewController *settingsVC = [[%c(AWESettingBaseViewController) alloc] init];
             BOOL hasAgreed = getUserDefaults(@"DYYYUserAgreementAccepted");
             if (!hasAgreed) {
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    [DYYYManager showToast:@"当前设置无法生效，因为您还没有前往旧版界面同意使用协议。"];
+                showAboutDialog(@"用户协议", @"本插件为开源项目\n仅供学习交流用途\n如有侵权请联系, GitHub 仓库：huami1314/DYYY\n请遵守当地法律法规, 逆向工程仅为学习目的\n盗用源码进行商业用途/发布但未标记开源项目必究\n详情请参阅项目内 MIT 许可证\n\n请输入\"我已阅读并同意继续使用\"以继续", ^{
+                    showUserAgreementAlert();
                 });
             }
 
@@ -574,7 +590,8 @@ static AWESettingSectionModel* createSection(NSString* title, NSArray* items) {
                     @{@"identifier": @"DYYYfilterKeywords", @"title": @"推荐过滤文案", @"detail": @"", @"cellType": @26, @"imageName": @"ic_tag_outlined_20"},
                     @{@"identifier": @"DYYYNoAds", @"title": @"启用屏蔽广告", @"detail": @"", @"cellType": @6, @"imageName": @"ic_ad_outlined_20"},
                     @{@"identifier": @"DYYYNoUpdates", @"title": @"屏蔽检测更新", @"detail": @"", @"cellType": @6, @"imageName": @"ic_circletop_outlined"},
-                    @{@"identifier": @"DYYYHideteenmode", @"title": @"屏蔽青少年模式弹窗", @"detail": @"", @"cellType": @6, @"imageName": @"ic_personcircleclean_outlined_20"}
+                    @{@"identifier": @"DYYYHideteenmode", @"title": @"屏蔽青少年模式弹窗", @"detail": @"", @"cellType": @6, @"imageName": @"ic_personcircleclean_outlined_20"},
+                    @{@"identifier": @"DYYYAnchorKeywords", @"title": @"屏蔽昵称上方容器", @"detail": @"", @"cellType": @26, @"imageName": @"ic_ad_outlined_20"}
                 ];
                 
                 for (NSDictionary *dict in filterSettings) {
@@ -642,7 +659,32 @@ static AWESettingSectionModel* createSection(NSString* title, NSArray* items) {
                                 }
                             }, nil);
                         };
-                    }
+                    }else if ([item.identifier isEqualToString:@"DYYYAnchorKeywords"]) {
+                        NSString *savedValue = [[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYAnchorKeywords"];
+                        item.detail = savedValue ?: @"";
+                        item.cellTappedBlock = ^{
+                            showTextInputAlert(@"设置按钮过滤关键词", item.detail, @"用,分隔 如:剪映 填All全过滤", ^(NSString *text) {
+                                NSString *trimmedText = [text stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+                                setUserDefaults(trimmedText, @"DYYYAnchorKeywords");
+                                item.detail = trimmedText ?: @"";
+                                UIViewController *topVC = topView();
+                                if ([topVC isKindOfClass:%c(AWESettingBaseViewController)]) {
+                                    dispatch_async(dispatch_get_main_queue(), ^{
+                                        UITableView *tableView = nil;
+                                        for (UIView *subview in topVC.view.subviews) {
+                                            if ([subview isKindOfClass:[UITableView class]]) {
+                                                tableView = (UITableView *)subview;
+                                                break;
+                                        }
+                                    }
+                                    if (tableView) {
+                                            [tableView reloadData];
+                                        }
+                                    });
+                            }
+                        }, nil);
+                    };
+                 }
                     [filterItems addObject:item];
                 }
 
@@ -842,7 +884,6 @@ static AWESettingSectionModel* createSection(NSString* title, NSArray* items) {
                     @{@"identifier": @"DYYYHideInteractionSearch", @"title": @"隐藏相关搜索", @"detail": @"", @"cellType": @6, @"imageName": @"ic_eyeslash_outlined_16"},
                     @{@"identifier": @"DYYYHideDanmuButton", @"title": @"隐藏弹幕按钮", @"detail": @"", @"cellType": @6, @"imageName": @"ic_eyeslash_outlined_16"},
                     @{@"identifier": @"DYYYHideCancelMute", @"title": @"隐藏静音按钮", @"detail": @"", @"cellType": @6, @"imageName": @"ic_eyeslash_outlined_16"},
-                    @{@"identifier": @"DYYYHideLocation", @"title": @"隐藏视频定位", @"detail": @"", @"cellType": @6, @"imageName": @"ic_eyeslash_outlined_16"},
                     @{@"identifier": @"DYYYHideQuqishuiting", @"title": @"隐藏去汽水听", @"detail": @"", @"cellType": @6, @"imageName": @"ic_eyeslash_outlined_16"},
                     @{@"identifier": @"DYYYHideGongChuang", @"title": @"隐藏共创头像", @"detail": @"", @"cellType": @6, @"imageName": @"ic_eyeslash_outlined_16"},
                     @{@"identifier": @"DYYYHideHotspot", @"title": @"隐藏热点提示", @"detail": @"", @"cellType": @6, @"imageName": @"ic_eyeslash_outlined_16"},
@@ -850,7 +891,6 @@ static AWESettingSectionModel* createSection(NSString* title, NSArray* items) {
                     @{@"identifier": @"DYYYHideBottomRelated", @"title": @"隐藏底部相关", @"detail": @"", @"cellType": @6, @"imageName": @"ic_eyeslash_outlined_16"},                    
                     @{@"identifier": @"DYYYHideShareContentView", @"title": @"隐藏分享提示", @"detail": @"", @"cellType": @6, @"imageName": @"ic_eyeslash_outlined_16"},
                     @{@"identifier": @"DYYYHideAntiAddictedNotice", @"title": @"隐藏作者声明", @"detail": @"", @"cellType": @6, @"imageName": @"ic_eyeslash_outlined_16"},
-                    @{@"identifier": @"DYYYHideFeedAnchorContainer", @"title": @"隐藏拍摄同款", @"detail": @"", @"cellType": @6, @"imageName": @"ic_eyeslash_outlined_16"},
                     @{@"identifier": @"DYYYHideChallengeStickers", @"title": @"隐藏挑战贴纸", @"detail": @"", @"cellType": @6, @"imageName": @"ic_eyeslash_outlined_16"},
                     @{@"identifier": @"DYYYHideTemplateTags", @"title": @"隐藏校园提示", @"detail": @"", @"cellType": @6, @"imageName": @"ic_eyeslash_outlined_16"},
                     @{@"identifier": @"DYYYHideHisShop", @"title": @"隐藏作者店铺", @"detail": @"", @"cellType": @6, @"imageName": @"ic_eyeslash_outlined_16"},
@@ -1049,6 +1089,12 @@ static AWESettingSectionModel* createSection(NSString* title, NSArray* items) {
                     // 为双击菜单选项添加特殊处理
                     if ([item.identifier isEqualToString:@"DYYYEnableDoubleOpenAlertController"]) {
                         item.cellTappedBlock = ^{
+                            // 检查是否启用了双击打开评论功能
+                            BOOL isEnableDoubleOpenComment = getUserDefaults(@"DYYYEnableDoubleOpenComment");
+                            if (isEnableDoubleOpenComment) {
+                                return;
+                            }
+                            
                             NSMutableArray<AWESettingItemModel *> *doubleTapItems = [NSMutableArray array];
                             AWESettingItemModel *enableDoubleTapMenu = [self createSettingItem:@{
                                 @"identifier": @"DYYYEnableDoubleOpenAlertController", 
@@ -1534,6 +1580,9 @@ static AWESettingSectionModel* createSection(NSString* title, NSArray* items) {
         [self updateDependentItemsForSetting:identifier value:@(isEnabled)];
     }
     else if ([identifier isEqualToString:@"DYYYEnableDoubleOpenComment"]) {
+        // 不论是开启还是关闭，都需要更新相关依赖项状态
+        [self updateDependentItemsForSetting:identifier value:@(isEnabled)];
+        
         if (isEnabled) {
             // 如果启用双击打开评论，禁用双击打开菜单
             setUserDefaults(@(NO), @"DYYYEnableDoubleOpenAlertController");
@@ -1541,6 +1590,9 @@ static AWESettingSectionModel* createSection(NSString* title, NSArray* items) {
         }
     }
     else if ([identifier isEqualToString:@"DYYYEnableDoubleOpenAlertController"]) {
+        // 不论是开启还是关闭，都需要更新相关依赖项状态
+        [self updateDependentItemsForSetting:identifier value:@(isEnabled)];
+        
         if (isEnabled) {
             // 如果启用双击打开菜单，禁用双击打开评论
             setUserDefaults(@(NO), @"DYYYEnableDoubleOpenComment");
@@ -1602,18 +1654,16 @@ static AWESettingSectionModel* createSection(NSString* title, NSArray* items) {
                     }
                 }
             }
-            else if ([identifier isEqualToString:@"DYYYEnableDoubleOpenAlertController"] && 
-                     [item.identifier isEqualToString:@"DYYYEnableDoubleOpenComment"]) {
-                item.isEnable = ![value boolValue];
-                if ([value boolValue]) {
-                    item.isSwitchOn = NO;
+            else if ([identifier isEqualToString:@"DYYYEnableDoubleOpenComment"]) {
+                if ([item.identifier isEqualToString:@"DYYYEnableDoubleOpenAlertController"]) {
+                    // 如果"双击打开评论"被禁用，则启用"双击打开菜单"选项
+                    item.isEnable = ![value boolValue];
                 }
             }
-            else if ([identifier isEqualToString:@"DYYYEnableDoubleOpenComment"] && 
-                     [item.identifier isEqualToString:@"DYYYEnableDoubleOpenAlertController"]) {
-                item.isEnable = ![value boolValue];
-                if ([value boolValue]) {
-                    item.isSwitchOn = NO;
+            else if ([identifier isEqualToString:@"DYYYEnableDoubleOpenAlertController"]) {
+                if ([item.identifier isEqualToString:@"DYYYEnableDoubleOpenComment"]) {
+                    // 如果"双击打开菜单"被禁用，则启用"双击打开评论"选项
+                    item.isEnable = ![value boolValue];
                 }
             }
             // 新增更新逻辑

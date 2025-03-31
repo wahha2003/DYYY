@@ -256,6 +256,9 @@ typedef NS_ENUM(NSInteger, MediaType) {
 @end
 
 @interface AWEFeedTemplateAnchorView : UIView
+- (void)didMoveToSuperview;
+- (void)filterContentIfNeeded;
+- (BOOL)checkIfContainsKeyword:(NSString *)keyword inView:(UIView *)view;
 @end
 
 @interface AWEPlayInteractionSearchAnchorView : UIView
@@ -361,11 +364,6 @@ typedef NS_ENUM(NSInteger, MediaType) {
 @end
 
 @interface AWEAntiAddictedNoticeBarView : UIView
-@property (nonatomic, strong, readonly) UIView *superview;
-@property (nonatomic, assign, getter=isHidden) BOOL hidden;
-@end
-
-@interface AWEFeedAnchorContainerView : UIView
 @property (nonatomic, strong, readonly) UIView *superview;
 @property (nonatomic, assign, getter=isHidden) BOOL hidden;
 @end
@@ -550,6 +548,10 @@ typedef NS_ENUM(NSInteger, MediaType) {
 - (void)layoutSubviews;
 @end
 
+@interface AWEFeedTopBarContainer : UIView
+- (void)applyDYYYTransparency; 
+@end
+
 @interface AWEHPTopBarCTAContainer : UIView
 - (void)applyDYYYTransparency;
 @end
@@ -578,8 +580,8 @@ typedef NS_ENUM(NSInteger, MediaType) {
 @interface AWEUserNameLabel : UIView
 @end
 
-@interface AWEHPTopTabItemBadgeContentView : UIView
+@interface AWEPlayInteractionDescriptionLabel : UILabel
 @end
 
-@interface AWEPlayInteractionDescriptionLabel : UILabel
+@interface AWEConcernSkylightCapsuleView : UIView
 @end

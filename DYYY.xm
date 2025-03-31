@@ -120,8 +120,8 @@
     return [self findViewController:vc.presentedViewController ofClass:targetClass];
 }
 %end
-// 添加新的 hook 来专门处理顶栏透明度
-%hook AWEHPTopBarCTAContainer
+// 添加新的 hook 来处理顶栏透明度
+%hook AWEFeedTopBarContainer
 - (void)layoutSubviews {
     %orig;
     [self applyDYYYTransparency];
@@ -141,10 +141,22 @@
     if (transparentValue && transparentValue.length > 0) {
         CGFloat alphaValue = [transparentValue floatValue];
         if (alphaValue >= 0.0 && alphaValue <= 1.0) {
+            // 设置自身背景色的透明度
+            UIColor *backgroundColor = self.backgroundColor;
+            if (backgroundColor) {
+                CGFloat r, g, b, a;
+                if ([backgroundColor getRed:&r green:&g blue:&b alpha:&a]) {
+                    self.backgroundColor = [UIColor colorWithRed:r green:g blue:b alpha:alphaValue * a];
+                }
+            }
+            
             // 使用类型转换确保编译器知道这是一个 UIView
             [(UIView *)self setAlpha:alphaValue];
             
-            // 移除了透明度为0时的特殊处理，避免按钮消失无法点击
+            // 确保子视图不会叠加透明度
+            for (UIView *subview in self.subviews) {
+                subview.alpha = 1.0;
+            }
         }
     }
 }
@@ -156,43 +168,88 @@
         NSString *danmuColor = [[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYdanmuColor"];
         
         if ([danmuColor.lowercaseString isEqualToString:@"random"] || [danmuColor.lowercaseString isEqualToString:@"#random"]) {
-            textColor = [DYYYManager colorWithHexString:@"random"];
+            textColor = [UIColor colorWithRed:(arc4random_uniform(256)) / 255.0
+                                        green:(arc4random_uniform(256)) / 255.0
+                                         blue:(arc4random_uniform(256)) / 255.0
+                                        alpha:CGColorGetAlpha(textColor.CGColor)];
             self.layer.shadowOffset = CGSizeZero;
             self.layer.shadowOpacity = 0.0;
-            self.layer.shadowRadius = 0.0;
         } else if ([danmuColor hasPrefix:@"#"]) {
-            textColor = [DYYYManager colorWithHexString:danmuColor];
+            textColor = [self colorFromHexString:danmuColor baseColor:textColor];
             self.layer.shadowOffset = CGSizeZero;
             self.layer.shadowOpacity = 0.0;
-            self.layer.shadowRadius = 0.0;
         } else {
-            textColor = [DYYYManager colorWithHexString:@"#FFFFFF"];
-            self.layer.shadowColor = [UIColor blackColor].CGColor;
-            self.layer.shadowOffset = CGSizeMake(1.0, 1.0);
-            self.layer.shadowOpacity = 0.8;
-            self.layer.shadowRadius = 1.0;
+            textColor = [self colorFromHexString:@"#FFFFFF" baseColor:textColor];
         }
     }
 
     %orig(textColor);
 }
+
+%new
+- (UIColor *)colorFromHexString:(NSString *)hexString baseColor:(UIColor *)baseColor {
+    if ([hexString hasPrefix:@"#"]) {
+        hexString = [hexString substringFromIndex:1];
+    }
+    if ([hexString length] != 6) {
+        return [baseColor colorWithAlphaComponent:1];
+    }
+    unsigned int red, green, blue;
+    [[NSScanner scannerWithString:[hexString substringWithRange:NSMakeRange(0, 2)]] scanHexInt:&red];
+    [[NSScanner scannerWithString:[hexString substringWithRange:NSMakeRange(2, 2)]] scanHexInt:&green];
+    [[NSScanner scannerWithString:[hexString substringWithRange:NSMakeRange(4, 2)]] scanHexInt:&blue];
+
+    if (red < 128 && green < 128 && blue < 128) {
+        return [UIColor whiteColor];
+    }
+
+    return [UIColor colorWithRed:(red / 255.0) green:(green / 255.0) blue:(blue / 255.0) alpha:CGColorGetAlpha(baseColor.CGColor)];
+}
 %end
 
 %hook AWEDanmakuItemTextInfo
 - (void)setDanmakuTextColor:(id)arg1 {
+//    NSLog(@"Original Color: %@", arg1);
+    
     if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYEnableDanmuColor"]) {
         NSString *danmuColor = [[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYdanmuColor"];
         
         if ([danmuColor.lowercaseString isEqualToString:@"random"] || [danmuColor.lowercaseString isEqualToString:@"#random"]) {
-            arg1 = [DYYYManager colorWithHexString:@"random"];
+            arg1 = [UIColor colorWithRed:(arc4random_uniform(256)) / 255.0
+                                   green:(arc4random_uniform(256)) / 255.0
+                                    blue:(arc4random_uniform(256)) / 255.0
+                                   alpha:1.0];
+//            NSLog(@"Random Color: %@", arg1);
         } else if ([danmuColor hasPrefix:@"#"]) {
-            arg1 = [DYYYManager colorWithHexString:danmuColor];
+            arg1 = [self colorFromHexStringForTextInfo:danmuColor];
+//            NSLog(@"Custom Hex Color: %@", arg1);
         } else {
-            arg1 = [DYYYManager colorWithHexString:@"#FFFFFF"];
+            arg1 = [self colorFromHexStringForTextInfo:@"#FFFFFF"];
+//            NSLog(@"Default White Color: %@", arg1);
         }
     }
 
     %orig(arg1);
+}
+
+%new
+- (UIColor *)colorFromHexStringForTextInfo:(NSString *)hexString {
+    if ([hexString hasPrefix:@"#"]) {
+        hexString = [hexString substringFromIndex:1];
+    }
+    if ([hexString length] != 6) {
+        return [UIColor whiteColor];
+    }
+    unsigned int red, green, blue;
+    [[NSScanner scannerWithString:[hexString substringWithRange:NSMakeRange(0, 2)]] scanHexInt:&red];
+    [[NSScanner scannerWithString:[hexString substringWithRange:NSMakeRange(2, 2)]] scanHexInt:&green];
+    [[NSScanner scannerWithString:[hexString substringWithRange:NSMakeRange(4, 2)]] scanHexInt:&blue];
+    
+    if (red < 128 && green < 128 && blue < 128) {
+        return [UIColor whiteColor];
+    }
+    
+    return [UIColor colorWithRed:(red / 255.0) green:(green / 255.0) blue:(blue / 255.0) alpha:1.0];
 }
 %end
 
@@ -523,7 +580,6 @@
 
 %end
 
-
 %hook AWEStoryContainerCollectionView
 - (void)layoutSubviews {
     %orig;
@@ -552,6 +608,7 @@
     }
 }
 %end
+
 %hook AWEFeedTableView
 - (void)layoutSubviews {
     %orig;
@@ -1181,18 +1238,66 @@
 
 %end
 
-//隐藏拍同款
-%hook AWEFeedAnchorContainerView
+//按关键词隐藏昵称上方容器
+%hook AWEFeedTemplateAnchorView
 
-- (BOOL)isHidden {
-    BOOL origHidden = %orig; 
-    BOOL hideSamestyle = [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideFeedAnchorContainer"];
-    return origHidden || hideSamestyle;
+%new
+// 核心过滤逻辑
+- (void)filterContentIfNeeded {
+    // 读取用户设置
+    NSString *filterKeywords = [[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYAnchorKeywords"];
+    
+    // 空值检查
+    if (!filterKeywords || filterKeywords.length == 0) return;
+    
+    // 处理特殊关键词 "All"
+    if ([filterKeywords containsString:@"All"]) {
+        [self.superview removeFromSuperview];
+        return;
+    }
+    
+    // 分割关键词
+    NSArray *keywords = [filterKeywords componentsSeparatedByString:@","];
+    
+    // 递归检查关键词
+    __block BOOL shouldRemove = NO;
+    [keywords enumerateObjectsUsingBlock:^(NSString *keyword, NSUInteger idx, BOOL *stop) {
+        if ([self checkIfContainsKeyword:[keyword stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]] 
+                                  inView:self] ) {
+            shouldRemove = YES;
+            *stop = YES;
+        }
+    }];
+    
+    // 5. 执行删除操作
+    if (shouldRemove) {
+        [self.superview removeFromSuperview];
+    }
 }
 
-- (void)setHidden:(BOOL)hidden {
-    BOOL forceHide = [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideFeedAnchorContainer"];
-    %orig(forceHide ? YES : hidden); 
+%new
+// 递归检查方法
+- (BOOL)checkIfContainsKeyword:(NSString *)keyword inView:(UIView *)view {
+    if (keyword.length == 0) return NO;
+    
+    if ([view isKindOfClass:%c(UILabel)]) {
+        UILabel *label = (UILabel *)view;
+        if (label.text && [label.text containsString:keyword]) {
+            return YES;
+        }
+    }
+    
+    for (UIView *subview in view.subviews) {
+        if ([self checkIfContainsKeyword:keyword inView:subview]) {
+            return YES;
+        }
+    }
+    return NO;
+}
+
+- (void)didMoveToSuperview {
+    %orig;
+    [self filterContentIfNeeded];
 }
 
 %end
@@ -1316,7 +1421,7 @@
         }
         
         // 隐藏点赞数值标签
-        if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideLikeBLabel"]) {
+        if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideLikeLabel"]) {
             for (UIView *subview in self.subviews) {
                 if ([subview isKindOfClass:[UILabel class]]) {
                     subview.hidden = YES;
@@ -2053,18 +2158,6 @@
 
 %end
 
-%hook AWEFeedTemplateAnchorView
-
-- (void)layoutSubviews {
-    %orig;
-
-    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideLocation"]) {
-        [self removeFromSuperview];
-        return;
-    }
-}
-
-%end
 
 %hook AWEPlayInteractionSearchAnchorView
 
@@ -3100,12 +3193,13 @@ static BOOL isDownloadFlied = NO;
 }
 %end
 
-%hook AWEConcernSkylightCapsuleView
+%hook AWEConcernSkylightCapsuleView  //移除关注xx个直播
 - (void)setHidden:(BOOL)hidden {
     if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideConcernCapsuleView"]) {
-        hidden = YES;
+        [self removeFromSuperview];
+        return;
     }
-
+    
     %orig(hidden);
 }
 %end
@@ -3815,14 +3909,8 @@ static BOOL isDownloadFlied = NO;
     BOOL hideEnabled = [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideTopBarBadge"];
 
     if (hideEnabled) {
-        // 启用隐藏功能时的逻辑
-        // --------------------------------------
-        // 方案1：完全阻断徽章创建（推荐）
+        // 阻断徽章创建
         return nil;  // 返回 nil 阻止视图生成
-        
-        // 方案2：返回空视图（兼容性更强）
-        // UIView *dummyView = [[UIView alloc] initWithFrame:CGRectZero];
-        // return dummyView;
     } else {
         // 未启用隐藏功能时正常显示
         return %orig(style, config, count, text);
