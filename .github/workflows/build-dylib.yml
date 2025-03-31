@@ -1,9 +1,7 @@
-name: Builder
+name: Builde dylib
 
 on: 
   workflow_dispatch:  # 手动触发开关
-    branches:
-      - private
 jobs:
   build:
     runs-on: macos-latest
