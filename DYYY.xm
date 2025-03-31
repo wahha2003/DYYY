@@ -3923,11 +3923,11 @@ static BOOL isDownloadFlied = NO;
 {
     BOOL hideEnabled = [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideRecallMessage"];
     if (hideEnabled) {
-        NSlog(@"[hook]参数 arg: %@", arg1);
+        NSLog(@"[hook]参数 arg: %@", arg1);
         NSLog(@"[hook]参数类型 %@", [arg1 class]);
         return;
     }else{
-        NSLog(@"[hook]参数 arg: %@", arg1)
+        NSLog(@"[hook]参数 arg: %@", arg1);
         NSLog(@"[hook]参数类型 %@", [arg1 class]);
         %orig(arg1);
     }
