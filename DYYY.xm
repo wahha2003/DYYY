@@ -3953,11 +3953,11 @@ static BOOL isDownloadFlied = NO;
 {
     BOOL Enabled = [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYDisableRecallMessage"];
     if (Enabled) {
-        NSLog(@"[hook AWEIMRecallMessage]参数 arg: %@, 参数类型: %@. 已尝试阻断", arg1, [arg1 class]);
+        NSLog(@"[hook AWEIMRecallMessage]参数 arg: %@, 参数类型: %@. 已尝试阻断", arg, [arg class]);
         return;
     }else{
-        NSLog(@"[hook AWEIMRecallMessage]参数 arg: %@, 参数类型: %@. 执行原逻辑", arg1, [arg1 class]);
-        %orig(arg1);
+        NSLog(@"[hook AWEIMRecallMessage]参数 arg: %@, 参数类型: %@. 执行原逻辑", arg, [arg class]);
+        %orig(arg);
     }
 }
 - (id)setRecalledMsg{
