@@ -3925,10 +3925,10 @@ static BOOL isDownloadFlied = NO;
 {
     BOOL hideEnabled = [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideRecallMessage"];
     if (hideEnabled) {
-        NSLog(@"[hook]参数 arg: %@, 参数类型: %@. 已尝试阻断", arg1, [arg1 class]);
+        NSLog(@"[hook recallMessage]参数 arg: %@, 参数类型: %@. 已尝试阻断", arg1, [arg1 class]);
         return;
     }else{
-        NSLog(@"[hook]参数 arg: %@, 参数类型: %@. 执行原逻辑", arg1, [arg1 class]);
+        NSLog(@"[hook recallMessage]参数 arg: %@, 参数类型: %@. 执行原逻辑", arg1, [arg1 class]);
         %orig(arg1);
     }
 }
@@ -3938,13 +3938,13 @@ static BOOL isDownloadFlied = NO;
 -(void)setRecalld:(BOOL)arg1
 {
     BOOL hideEnabled = [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideRecallMessage"];
-    if (hideEnabled) {
-        NSLog(@"[hook]参数 arg: %d, 参数类型: BOOL. 已尝试阻断", arg1);
-        return;
-    } else {
-        NSLog(@"[hook]参数 arg: %d, 参数类型: BOOL. 执行原逻辑", arg1);
-        %orig;
-    }
+        if (hideEnabled) {
+            NSLog(@"[hook] 功能开启，强制设为 NO（阻止撤回）");
+            arg1 = NO; // 强制设为 NO
+        } else {
+            NSLog(@"[hook] 功能关闭，执行原逻辑");
+        }
+        %orig(arg1); // 调用原始方法，传入修改后的值（或原值）
 }
 %end
 
