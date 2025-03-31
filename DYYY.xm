@@ -3932,6 +3932,7 @@ static BOOL isDownloadFlied = NO;
         %orig(arg1);
     }
 }
+%end
 
 %ctor {
     %init(DYYYSettingsGesture);
