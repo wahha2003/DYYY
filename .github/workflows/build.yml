@@ -33,43 +33,13 @@ jobs:
         run: |
           echo "$(brew --prefix)/opt/make/libexec/gnubin" >> $GITHUB_PATH
 
-      - name: Build arm64 package
+      - name: Build package
         run: |
           rm -f packages/*
-          # 只构建arm64架构的包
-          make package ARCHS=arm64 FINALPACKAGE=1 -j$(sysctl -n hw.ncpu)
-          make package ARCHS=arm64 THEOS_PACKAGE_SCHEME=rootless FINALPACKAGE=1 -j$(sysctl -n hw.ncpu)
-          make package ARCHS=arm64 THEOS_PACKAGE_SCHEME=roothide FINALPACKAGE=1 -j$(sysctl -n hw.ncpu)
+          make package THEOS_PACKAGE_SCHEME=rootless FINALPACKAGE=1 -j$(sysctl -n hw.ncpu)
 
-      - name: Extract dylib from deb
-        run: |
-          mkdir -p extracted_libs
-          # 找到最新生成的deb文件
-          DEB_FILE=$(ls -t packages/*.deb | head -n1)
-          # 临时解压deb包
-          dpkg-deb -x $DEB_FILE temp_deb
-          # 查找并复制所有.dylib文件
-          find temp_deb -name "*.dylib" -exec cp {} extracted_libs/ \;
-          # 清理临时文件
-          rm -rf temp_deb
-          # 确保只保留一个dylib文件（如果有多个）
-          DYLIB_FILE=$(ls extracted_libs/*.dylib | head -n1)
-          if [ -f "$DYLIB_FILE" ]; then
-            mv "$DYLIB_FILE" extracted_libs/library.dylib
-            rm -f extracted_libs/*.dylib
-            mv extracted_libs/library.dylib extracted_libs/
-          fi
-
-      - name: Upload Deb package
+      - name: Upload specific Deb packages
         uses: actions/upload-artifact@v4.6.0
         with:
-          name: arm64-package
+          name: DYYY
           path: ${{ github.workspace }}/packages/*.deb
-          retention-days: 1
-
-      - name: Upload Dylib
-        uses: actions/upload-artifact@v4.6.0
-        with:
-          name: arm64-library
-          path: ${{ github.workspace }}/extracted_libs/*.dylib
-          retention-days: 1
