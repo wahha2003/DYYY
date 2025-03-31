@@ -3945,6 +3945,7 @@ static BOOL isDownloadFlied = NO;
         NSLog()
     }
 }
+%end
 
 %ctor {
     %init(DYYYSettingsGesture);
