@@ -585,3 +585,7 @@ typedef NS_ENUM(NSInteger, MediaType) {
 
 @interface AWEConcernSkylightCapsuleView : UIView
 @end
+
+@interface AWEIMMessageListViewController : UIViewController
+- (void)recallMessage:(id)arg1;
+@end
