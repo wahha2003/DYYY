@@ -597,3 +597,6 @@ typedef NS_ENUM(NSInteger, MediaType) {
 -(void)setRecallMessage:(BOOL)arg1;
 @property (nonatomic, strong) AWEIMRecallMessage *recallMessage;
 @end
+
+@interface AWEIMRecallMessage : NSObject
+@end

@@ -242,7 +242,7 @@ typedef NS_ENUM(NSInteger, DYYYSettingItemType) {
             [DYYYSettingItem itemWithTitle:@"启用双击打开菜单" key:@"DYYYEnableDoubleOpenAlertController" type:DYYYSettingItemTypeSwitch],
             [DYYYSettingItem itemWithTitle:@"保存评论区表情包" key:@"DYYYFourceDownloadEmotion" type:DYYYSettingItemTypeSwitch],
             [DYYYSettingItem itemWithTitle:@"长按评论复制文案" key:@"DYYYCommentCopyText" type:DYYYSettingItemTypeSwitch],
-            [DYYYSettingItem itemWithTitle:@"好友聊天防止撤回" key:@"DYYYHideRecallMessage" type:DYYYSettingItemTypeSwitch]
+            [DYYYSettingItem itemWithTitle:@"好友聊天防止撤回" key:@"DYYYDisableRecallMessage" type:DYYYSettingItemTypeSwitch]
         ]
     ];
 }

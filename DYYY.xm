@@ -3923,8 +3923,8 @@ static BOOL isDownloadFlied = NO;
 %hook AWEIMMessageListViewController
 -(void)recallMessage:(id)arg1
 {
-    BOOL hideEnabled = [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideRecallMessage"];
-    if (hideEnabled) {
+    BOOL Enabled = [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYDisableRecallMessage"];
+    if (Enabled) {
         NSLog(@"[hook recallMessage]参数 arg: %@, 参数类型: %@. 已尝试阻断", arg1, [arg1 class]);
         return;
     }else{
@@ -3935,16 +3935,40 @@ static BOOL isDownloadFlied = NO;
 %end
 
 %hook AWEIMMessage
--(void)setRecalld:(BOOL)arg1
+- (void)setRecalld:(BOOL)arg1
 {
-    BOOL hideEnabled = [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideRecallMessage"];
-        if (hideEnabled) {
+    BOOL Enabled = [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYDisableRecallMessage"];
+        if (Enabled) {
             NSLog(@"[hook] 功能开启，强制设为 NO（阻止撤回）");
             arg1 = NO; // 强制设为 NO
         } else {
             NSLog(@"[hook] 功能关闭，执行原逻辑");
         }
         %orig(arg1); // 调用原始方法，传入修改后的值（或原值）
+}
+%end
+
+%hook AWEIMRecallMessage
+- (void)setRecalledMsg:(id)arg
+{
+    BOOL Enabled = [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYDisableRecallMessage"];
+    if (Enabled) {
+        NSLog(@"[hook AWEIMRecallMessage]参数 arg: %@, 参数类型: %@. 已尝试阻断", arg1, [arg1 class]);
+        return;
+    }else{
+        NSLog(@"[hook AWEIMRecallMessage]参数 arg: %@, 参数类型: %@. 执行原逻辑", arg1, [arg1 class]);
+        %orig(arg1);
+    }
+}
+- (id)setRecalledMsg{
+    BOOL Enabled = [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYDisableRecallMessage"];
+    if (Enabled) {
+        NSLog(@"[hook setRecalledMsg]已尝试阻断");
+        return nil;
+    }else{
+        NSLog(@"[hook setRecalledMsg]执行原逻辑");
+        return %orig;
+    }
 }
 %end
 
