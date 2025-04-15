@@ -3131,6 +3131,8 @@ static BOOL isDownloadFlied = NO;
 
 %end
 
+// 真实直播人数
+
 %ctor {
 	%init(DYYYSettingsGesture);
 	if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYUserAgreementAccepted"]) {

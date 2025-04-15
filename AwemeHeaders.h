@@ -675,3 +675,7 @@ typedef NS_ENUM(NSInteger, MediaType) {
 @interface AWEFakeProgressSliderView : UIView
 - (void)applyCustomProgressStyle;
 @end
+
+
+//直播间模型
+@interface AWELiveRoomModel : NSObject
