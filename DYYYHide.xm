@@ -497,6 +497,17 @@
 
 %hook AWELeftSideBarEntranceView
 
+//隐藏侧栏红点
+- (void)setRedDot:(id)redDot {
+	if (![[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYisHiddenSidebarDot"])
+		%orig;
+}
+
+- (void)setNumericalRedDot:(id)numericalRedDot {
+	if (![[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYisHiddenSidebarDot"])
+		%orig;
+}
+
 - (void)layoutSubviews {
 
 	__block BOOL isInTargetController = NO;
@@ -1215,20 +1226,11 @@
 %end
 
 // 隐藏点击进入直播间
-%hook AWELiveFeedStatusLabel
+%hook AWELivePrestreamGuideView
 - (void)layoutSubviews {
 	%orig;
 	if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideEnterLive"]) {
-		UIView *parentView = self.superview;
-		UIView *grandparentView = parentView.superview;
-
-		if (grandparentView) {
-			grandparentView.hidden = YES;
-		} else if (parentView) {
-			parentView.hidden = YES;
-		} else {
-			self.hidden = YES;
-		}
+		[self removeFromSuperview];
 	}
 }
 %end
@@ -1331,12 +1333,22 @@
 %hook AWEHPTopBarCTAItemView
 
 - (void)showRedDot {
-	if (![[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYisHiddenSidebarDot"])
+	if (![[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYisHiddenSidebarDot"])
 		%orig;
 }
 
-- (void)hideCountRedDot {
-	if (![[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYisHiddenSidebarDot"])
+- (void)showRedDotWithCount:(NSInteger)count {
+	if (![[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYisHiddenSidebarDot"])
+		%orig;
+}
+
+- (void)setRedDot:(id)redDot {
+	if (![[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYisHiddenSidebarDot"])
+		%orig;
+}
+
+- (void)setNumericalRedDot:(id)numericalRedDot {
+	if (![[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYisHiddenSidebarDot"])
 		%orig;
 }
 
@@ -1350,18 +1362,6 @@
 		}
 	}
 }
-%end
-
-%hook AWELeftSideBarEntranceView
-
-- (void)setRedDot:(id)redDot {
-	%orig(nil);
-}
-
-- (void)setNumericalRedDot:(id)numericalRedDot {
-	%orig(nil);
-}
-
 %end
 
 // 隐藏搜同款
@@ -1494,6 +1494,15 @@
 
 // 隐藏直播间商品信息
 %hook IESECLivePluginLayoutView
+- (void)layoutSubviews {
+	%orig;
+	if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideLiveGoodsMsg"]) {
+		[self removeFromSuperview];
+	}
+}
+%end
+
+%hook AWELiveLocalLiveStickerContainerView
 - (void)layoutSubviews {
 	%orig;
 	if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideLiveGoodsMsg"]) {
