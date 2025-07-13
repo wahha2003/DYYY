@@ -1,6 +1,6 @@
-#import <UIKit/UIKit.h>
 #import <Photos/Photos.h>
 #import <QuartzCore/QuartzCore.h>
+#import <UIKit/UIKit.h>
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -11,20 +11,26 @@ NS_ASSUME_NONNULL_BEGIN
 #pragma mark - Public UI/Window/Controller Utilities (公共 UI/窗口/控制器 工具)
 
 /**
- * 获取当前显示的顶层视图控制器
- * @return 顶层视图控制器
- */
-+ (UIViewController *)topView;
-
-/**
  * 获取当前活动窗口
  */
 + (UIWindow *)getActiveWindow;
 
 /**
- * 获取当前顶层控制器
+ * 获取当前显示的顶层视图控制器
+ * @return 顶层视图控制器
  */
-+ (UIViewController *)getActiveTopController;
++ (UIViewController *)topView;
+
++ (UIViewController *)firstAvailableViewControllerFromView:(UIView *)view;
+/* 在视图控制器层级中查找指定类的控制器 */
++ (UIViewController *)findViewControllerOfClass:(Class)targetClass inViewController:(UIViewController *)vc;
++ (UIResponder *)findAncestorResponderOfClass:(Class)targetClass fromView:(UIView *)view;
++ (NSArray<UIView *> *)findAllSubviewsOfClass:(Class)targetClass inView:(UIView *)view;
++ (UIView *)findSubviewOfClass:(Class)targetClass inView:(UIView *)view;
+/* 判断视图是否包含指定类型的子视图 */
++ (BOOL)containsSubviewOfClass:(Class)targetClass inView:(UIView *)view;
++ (void)applyBlurEffectToView:(UIView *)view transparency:(float)userTransparency blurViewTag:(NSInteger)tag;
++ (void)clearBackgroundRecursivelyInView:(UIView *)view;
 
 /**
  * 显示提示信息
@@ -37,7 +43,7 @@ NS_ASSUME_NONNULL_BEGIN
  */
 + (BOOL)isDarkMode;
 
-    #pragma mark - Public File Management (公共文件管理)
+#pragma mark - Public File Management (公共文件管理)
 
 /**格式化大小
  * 将大小转换为易读的格式
@@ -71,6 +77,15 @@ NS_ASSUME_NONNULL_BEGIN
 + (NSString *)cachePathForFilename:(NSString *)filename;
 
 #pragma mark - Public Color Scheme Methods (公共颜色方案方法)
+
+/**
+ * @brief 递归地将指定的文本颜色应用到视图及其所有子视图中的 UILabel 和 UIButton。
+ *        可以通过 shouldExcludeViewBlock 提供自定义的排除逻辑。
+ * @param color 要应用的文本颜色。
+ * @param view 起始视图。
+ * @param excludeBlock 一个 Block，用于判断是否应该排除某个视图。如果 Block 返回 YES，则该视图不会被应用颜色。可以为 nil。
+ */
++ (void)applyTextColorRecursively:(UIColor *)color inView:(UIView *)view shouldExcludeViewBlock:(BOOL (^)(UIView *subview))excludeBlock;
 
 /**
  * @brief 将指定的颜色字符串方案应用到 UILabel 上，实现像素级渐变。
@@ -124,30 +139,30 @@ extern "C" {
  * @param url 需要清理的URL字符串
  * @return 清理后的URL字符串
  */
-NSString * _Nullable cleanShareURL(NSString * _Nullable url);
+NSString *_Nullable cleanShareURL(NSString *_Nullable url);
 
 /**
  * 获取当前显示的顶层视图控制器
  * @return 顶层视图控制器
  */
-UIViewController * _Nullable topView(void);
+UIViewController *_Nullable topView(void);
 
 /**
  * 判断视图是否包含指定类型的子视图
  */
-BOOL viewContainsSubviewOfClass(UIView * _Nullable view, Class _Nullable viewClass);
+BOOL viewContainsSubviewOfClass(UIView *_Nullable view, Class _Nullable viewClass);
 
 /** 判断是否为右侧互动区域 */
-BOOL isRightInteractionStack(UIView * _Nullable stackView);
+BOOL isRightInteractionStack(UIView *_Nullable stackView);
 
 /** 判断是否为左侧互动区域 */
-BOOL isLeftInteractionStack(UIView * _Nullable stackView);
+BOOL isLeftInteractionStack(UIView *_Nullable stackView);
 
 /** 在视图控制器层级中查找指定类的控制器 */
-UIViewController * _Nullable findViewControllerOfClass(UIViewController * _Nullable rootVC, Class _Nullable targetClass);
+UIViewController *_Nullable findViewControllerOfClass(UIViewController *_Nullable rootVC, Class _Nullable targetClass);
 
 /** 根据设置应用顶栏透明度 */
-void applyTopBarTransparency(UIView * _Nullable topBar);
+void applyTopBarTransparency(UIView *_Nullable topBar);
 
 /**
  * 递归将任意对象转换为 JSON 可序列化对象

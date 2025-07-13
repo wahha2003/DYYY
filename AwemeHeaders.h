@@ -1,14 +1,13 @@
-#import <UIKit/UIKit.h>
 #import <Photos/Photos.h>
+#import <UIKit/UIKit.h>
 
+// 获取指定类型设置，键名不存在或类型错误时返回nil
 #define DYYYGetBool(key) [[NSUserDefaults standardUserDefaults] boolForKey:key]
+#define DYYYGetFloat(key) [[NSUserDefaults standardUserDefaults] floatForKey:key]
+#define DYYYGetInteger(key) [[NSUserDefaults standardUserDefaults] integerForKey:key]
+#define DYYYGetString(key) [[NSUserDefaults standardUserDefaults] stringForKey:key]
 #define DYYY_IGNORE_GLOBAL_ALPHA_TAG 114514
-typedef NS_ENUM(NSInteger, MediaType) {
-  MediaTypeVideo,
-  MediaTypeImage,
-  MediaTypeAudio,
-  MediaTypeHeic
-};
+typedef NS_ENUM(NSInteger, MediaType) { MediaTypeVideo, MediaTypeImage, MediaTypeAudio, MediaTypeHeic };
 
 static __weak UICollectionView *gFeedCV = nil;
 // 音量控制
@@ -24,9 +23,9 @@ static __weak UICollectionView *gFeedCV = nil;
 @end
 // 调节模式&全局状态
 typedef NS_ENUM(NSUInteger, DYEdgeMode) {
-  DYEdgeModeNone = 0,
-  DYEdgeModeBrightness = 1,
-  DYEdgeModeVolume = 2,
+    DYEdgeModeNone = 0,
+    DYEdgeModeBrightness = 1,
+    DYEdgeModeVolume = 2,
 };
 static DYEdgeMode gMode = DYEdgeModeNone;
 static CGFloat gStartY = 0.0;
@@ -104,6 +103,9 @@ static CGFloat gStartVal = 0.0;
 @interface AWEECommerceLabel : NSObject
 @end
 
+@interface AWELiveFollowFeedCellModel : NSObject
+@end
+
 @interface AWEAwemeModel : NSObject
 @property(nonatomic, strong, readwrite) NSNumber *createTime;
 @property(nonatomic, assign, readwrite) CGFloat videoDuration;
@@ -121,8 +123,8 @@ static CGFloat gStartVal = 0.0;
 @property(nonatomic, assign) BOOL isLivePhoto;
 @property(nonatomic, strong) NSString *shareURL;
 @property(nonatomic, strong) id hotSpotLynxCardModel;
-@property(nonatomic, copy) NSString *liveReason;
-@property(nonatomic, strong) id shareRecExtra; // 推荐视频专有属性
+@property(nonatomic, strong) AWELiveFollowFeedCellModel *cellRoom;
+@property(nonatomic, strong) id shareRecExtra;  // 推荐视频专有属性
 @property(nonatomic, strong) NSArray<AWEAwemeTextExtraModel *> *textExtras;
 @property(nonatomic, copy) NSString *itemTitle;
 @property(nonatomic, copy) NSString *descriptionSimpleString;
@@ -133,6 +135,7 @@ static CGFloat gStartVal = 0.0;
 @property(nonatomic, strong) AWEPropGuideV2Model *propGuideV2;
 @property(nonatomic, strong) AWEECommerceLabel *ecommerceBelowLabel;
 - (BOOL)isLive;
+- (BOOL)contentFilter;
 - (AWESearchAwemeExtraModel *)searchExtraModel;
 @end
 
@@ -199,54 +202,56 @@ static CGFloat gStartVal = 0.0;
 @end
 
 @interface AWEDanmakuContentLabel : UILabel
-@property (nonatomic, assign) long long type;
-@property (nonatomic, copy) NSString *danmakuText;
-@property (nonatomic, copy) NSArray *danmakuStyleList;
-@property (nonatomic, strong) UIColor *strokeColor;
-@property (nonatomic, assign) double strokeWidth;
-- (id)colorFromHexString:(id)arg0 baseColor:(id)arg1 ;
-- (void)setTextColor:(id)arg0 ;
-- (id)initWithFrame:(id)arg0 textColor:(id)arg1 type:(long long)arg2 ;
+@property(nonatomic, assign) long long type;
+@property(nonatomic, copy) NSString *danmakuText;
+@property(nonatomic, copy) NSArray *danmakuStyleList;
+@property(nonatomic, strong) UIColor *strokeColor;
+@property(nonatomic, assign) double strokeWidth;
+- (id)colorFromHexString:(id)arg0 baseColor:(id)arg1;
+- (void)setTextColor:(id)arg0;
+- (id)initWithFrame:(id)arg0 textColor:(id)arg1 type:(long long)arg2;
 - (id)danmakuText;
-- (void)setDanmakuText:(id)arg0 ;
+- (void)setDanmakuText:(id)arg0;
 - (id)danmakuStyleList;
-- (void)drawUnderLineWithStart:(long long)arg0 len:(long long)arg1 ;
-- (void)setDanmakuStyleList:(id)arg0 ;
+- (void)drawUnderLineWithStart:(long long)arg0 len:(long long)arg1;
+- (void)setDanmakuStyleList:(id)arg0;
 - (double)strokeWidth;
 - (id)accessibilityLabel;
-- (void)setStrokeWidth:(double)arg0 ;
-- (void)setAccessibilityLabel:(id)arg0 ;
-- (void)setStrokeColor:(id)arg0 ;
+- (void)setStrokeWidth:(double)arg0;
+- (void)setAccessibilityLabel:(id)arg0;
+- (void)setStrokeColor:(id)arg0;
 - (id)strokeColor;
 - (long long)type;
-- (id)initWithFrame:(id)arg0 ;
-- (id)boundingRectForCharacterRange:(id)arg0 ;
-- (void)drawTextInRect:(id)arg0 ;
-- (void)setType:(long long)arg0 ;
+- (id)initWithFrame:(id)arg0;
+- (id)boundingRectForCharacterRange:(id)arg0;
+- (void)drawTextInRect:(id)arg0;
+- (void)setType:(long long)arg0;
 @end
 
 @interface XIGDanmakuPlayerView : UIView
 @end
+@interface DDanmakuPlayerView : UIView
+@end
 
 @interface AWEDanmakuItemTextInfo : NSObject
-@property (nonatomic, strong) NSAttributedString *danmakuText;
-@property (nonatomic, assign) id danmakuTextFrame;
-@property (nonatomic, assign) double strokeWidth;
-@property (nonatomic, strong) UIColor *strokeColor;
-@property (nonatomic, strong) UIFont *danmakuFont;
-@property (nonatomic, strong) UIColor *danmakuTextColor;
-- (id)colorFromHexStringForTextInfo:(id)arg0 ;
-- (void)setDanmakuFont:(id)arg0 ;
+@property(nonatomic, strong) NSAttributedString *danmakuText;
+@property(nonatomic, assign) id danmakuTextFrame;
+@property(nonatomic, assign) double strokeWidth;
+@property(nonatomic, strong) UIColor *strokeColor;
+@property(nonatomic, strong) UIFont *danmakuFont;
+@property(nonatomic, strong) UIColor *danmakuTextColor;
+- (id)colorFromHexStringForTextInfo:(id)arg0;
+- (void)setDanmakuFont:(id)arg0;
 - (id)danmakuFont;
 - (id)danmakuText;
-- (void)setDanmakuText:(id)arg0 ;
+- (void)setDanmakuText:(id)arg0;
 - (id)danmakuTextFrame;
-- (void)setDanmakuTextFrame:(id)arg0 ;
+- (void)setDanmakuTextFrame:(id)arg0;
 - (id)danmakuTextColor;
-- (void)setDanmakuTextColor:(id)arg0 ;
+- (void)setDanmakuTextColor:(id)arg0;
 - (double)strokeWidth;
-- (void)setStrokeWidth:(double)arg0 ;
-- (void)setStrokeColor:(id)arg0 ;
+- (void)setStrokeWidth:(double)arg0;
+- (void)setStrokeColor:(id)arg0;
 - (id)strokeColor;
 @end
 
@@ -273,10 +278,6 @@ static CGFloat gStartVal = 0.0;
 - (void)speedButtonTapped:(id)sender;
 - (void)buttonTouchDown:(id)sender;
 - (void)buttonTouchUp:(id)sender;
-@end
-
-@interface UIView (Transparency)
-- (UIViewController *)firstAvailableUIViewController;
 @end
 
 @interface AWEFeedVideoButton : UIButton
@@ -357,6 +358,9 @@ static CGFloat gStartVal = 0.0;
 @end
 
 @interface AWEAwemeDetailTableView : UITableView
+@end
+
+@interface AWECommentContainerViewController : UIViewController
 @end
 
 @interface AWECommentInputViewController : UIViewController
@@ -972,9 +976,7 @@ static CGFloat gStartVal = 0.0;
 @property(retain, nonatomic) AWEButton *leftCancelButton;
 @property(retain, nonatomic) AWEButton *rightConfirmButton;
 
-- (void)configWithCloseButtonClickedBlock:(void (^)(void))closeButtonClickedBlock
-                           singleTapBlock:(void (^)(void))singleTapBlock
-                              toggleBlock:(void (^)(void))toggleBlock;
+- (void)configWithCloseButtonClickedBlock:(void (^)(void))closeButtonClickedBlock singleTapBlock:(void (^)(void))singleTapBlock toggleBlock:(void (^)(void))toggleBlock;
 - (void)configWithImageView:(UIImageView *)imageView
                   titleText:(NSString *)titleText
                 contentText:(NSString *)contentText
@@ -1063,6 +1065,8 @@ static CGFloat gStartVal = 0.0;
 @end
 @interface PlatformCanvasView : UIView
 @end
+@interface IESLiveDanmakuVariousView : UIView
+@end
 @interface IESLiveLotteryAnimationViewNew : UIView
 @end
 @interface IESLiveMatrixEntranceView : UIView
@@ -1076,6 +1080,10 @@ static CGFloat gStartVal = 0.0;
 @interface IESLiveGameCPExplainCardContainerImpl : UIView
 @end
 @interface AWEPOILivePurchaseAtmosphereView : UIView
+@end
+@interface IESLiveHotMessageView : UIView
+@end
+@interface AWEHomePageBubbleLiveHeadLabelContentView : UIView
 @end
 
 // 隐藏状态栏
@@ -1217,12 +1225,6 @@ static CGFloat gStartVal = 0.0;
 - (void)adjustContainerViewLayout:(UICollectionViewCell *)cell;
 @end
 
-@interface UIView (Helper)
-- (BOOL)containsClassNamed:(NSString *)className;
-- (UIView *)findViewWithClassName:(NSString *)className;
-- (NSArray<UIView *> *)findAllViewsWithClassName:(NSString *)className;
-@end
-
 @interface AWESettingsTableViewController : AWESettingBaseViewController
 - (id)viewModel;
 - (void)removeAboutSection;
@@ -1295,6 +1297,6 @@ static CGFloat gStartVal = 0.0;
 @interface MTKView : UIView
 @end
 
-
-//直播间模型
-@interface AWELiveRoomModel : NSObject
+@interface HTSEventForwardingView : UIView
+@property(copy, nonatomic) NSString *levelName;
+@end
