@@ -8,22 +8,29 @@
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 #import <signal.h>
-// 添加变量跟踪是否在目标视图控制器中
+#import "DYYYFloatSpeedButton.h"
+#import "DYYYUtils.h"
+
+void updateClearButtonVisibility(void);
+void showClearButton(void);
+void hideClearButton(void);
+
 static BOOL isInPlayInteractionVC = NO;
-// HideUIButton 接口声明
+static BOOL isCommentViewVisible = NO;
+static BOOL isForceHidden = NO;
+static BOOL isAppActive = YES;
+static BOOL isInteractionViewVisible = NO;
+
 @interface HideUIButton : UIButton
-// 状态属性
+
 @property(nonatomic, assign) BOOL isElementsHidden;
 @property(nonatomic, assign) BOOL isLocked;
-// UI 相关属性
 @property(nonatomic, strong) NSMutableArray *hiddenViewsList;
 @property(nonatomic, strong) UIImage *showIcon;
 @property(nonatomic, strong) UIImage *hideIcon;
 @property(nonatomic, assign) CGFloat originalAlpha;
-// 计时器属性
 @property(nonatomic, strong) NSTimer *checkTimer;
 @property(nonatomic, strong) NSTimer *fadeTimer;
-// 方法声明
 - (void)resetFadeTimer;
 - (void)hideUIElements;
 - (void)findAndHideViews:(NSArray *)classNames;
@@ -40,10 +47,15 @@ static BOOL isInPlayInteractionVC = NO;
 - (void)saveLockState;
 - (void)loadLockState;
 @end
-// 全局变量
+
 static HideUIButton *hideButton;
 static BOOL isAppInTransition = NO;
 static NSArray *targetClassNames;
+static CGFloat DYGetGlobalAlpha(void) {
+    NSString *value = [[NSUserDefaults standardUserDefaults] stringForKey:@"DYYYGlobalTransparency"];
+    CGFloat a = value.length ? value.floatValue : 1.0;
+    return (a >= 0.0 && a <= 1.0) ? a : 1.0;
+}
 static void findViewsOfClassHelper(UIView *view, Class viewClass, NSMutableArray *result) {
 	if ([view isKindOfClass:viewClass]) {
 		[result addObject:view];
@@ -62,10 +74,42 @@ static UIWindow *getKeyWindow(void) {
 	}
 	return keyWindow;
 }
+
+void updateClearButtonVisibility() {
+    if (!hideButton || !isAppActive)
+        return;
+    
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (!isInteractionViewVisible) {
+            hideButton.hidden = YES;
+            return;
+        }
+        
+        BOOL shouldHide = isCommentViewVisible || isForceHidden;
+        if (hideButton.hidden != shouldHide) {
+            hideButton.hidden = shouldHide;
+        }
+    });
+}
+
+void showClearButton(void) {
+    isForceHidden = NO;
+}
+
+void hideClearButton(void) {
+    isForceHidden = YES;
+    if (hideButton) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            hideButton.hidden = YES;
+        });
+    }
+}
+
 static void forceResetAllUIElements(void) {
 	UIWindow *window = getKeyWindow();
 	if (!window)
 		return;
+	Class StackViewClass = NSClassFromString(@"AWEElementStackView");
 	for (NSString *className in targetClassNames) {
 		Class viewClass = NSClassFromString(className);
 		if (!viewClass)
@@ -73,7 +117,12 @@ static void forceResetAllUIElements(void) {
 		NSMutableArray *views = [NSMutableArray array];
 		findViewsOfClassHelper(window, viewClass, views);
 		for (UIView *view in views) {
-			view.alpha = 1.0;
+			if([view isKindOfClass:StackViewClass]) {
+				view.alpha = DYGetGlobalAlpha();
+			}
+			else{
+				view.alpha = 1.0; // 恢复透明度
+			}
 		}
 	}
 }
@@ -83,11 +132,31 @@ static void reapplyHidingToAllElements(HideUIButton *button) {
 	[button hideUIElements];
 }
 static void initTargetClassNames(void) {
-	targetClassNames = @[
-		@"AWEHPTopBarCTAContainer", @"AWEHPDiscoverFeedEntranceView", @"AWELeftSideBarEntranceView", @"DUXBadge", @"AWEBaseElementView", @"AWEElementStackView",
-		@"AWEPlayInteractionDescriptionLabel", @"AWEUserNameLabel", @"AWEStoryProgressSlideView", @"AWEStoryProgressContainerView", @"ACCEditTagStickerView", @"AWEFeedTemplateAnchorView",
-		@"AWESearchFeedTagView", @"AWEPlayInteractionSearchAnchorView", @"AFDRecommendToFriendTagView", @"AWELandscapeFeedEntryView", @"AWEFeedAnchorContainerView", @"AFDAIbumFolioView"
-	];
+    NSMutableArray<NSString *> *list = [@[
+        @"AWEHPTopBarCTAContainer", @"AWEHPDiscoverFeedEntranceView", @"AWELeftSideBarEntranceView",
+        @"DUXBadge", @"AWEBaseElementView", @"AWEElementStackView",
+        @"AWEPlayInteractionDescriptionLabel", @"AWEUserNameLabel",
+        @"ACCEditTagStickerView", @"AWEFeedTemplateAnchorView",
+        @"AWESearchFeedTagView", @"AWEPlayInteractionSearchAnchorView",
+        @"AFDRecommendToFriendTagView", @"AWELandscapeFeedEntryView",
+        @"AWEFeedAnchorContainerView", @"AFDAIbumFolioView", @"DUXPopover",
+		@"AWEMixVideoPanelMoreView", @"AWEHotSearchInnerBottomView"
+    ] mutableCopy];
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideTabBar"]) {
+        [list addObject:@"AWENormalModeTabBar"];
+    }
+	if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideDanmaku"]) {
+		[list addObject:@"AWEVideoPlayDanmakuContainerView"];
+	}
+	if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideSlider"]) {
+		[list addObject:@"AWEStoryProgressSlideView"];
+		[list addObject:@"AWEStoryProgressContainerView"];
+	}
+	if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideChapter"]) {
+		[list addObject:@"AWEDemaciaChapterProgressSlider"];
+	}
+
+    targetClassNames = [list copy];
 }
 @implementation HideUIButton
 - (instancetype)initWithFrame:(CGRect)frame {
@@ -158,17 +227,67 @@ static void initTargetClassNames(void) {
 	self.isLocked = [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideUIButtonLockState"];
 }
 - (void)loadIcons {
-	NSString *documentsPath = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
-	NSString *iconPath = [documentsPath stringByAppendingPathComponent:@"DYYY/qingping.png"];
-	UIImage *customIcon = [UIImage imageWithContentsOfFile:iconPath];
-	if (customIcon) {
-		self.showIcon = customIcon;
-		self.hideIcon = customIcon;
-	} else {
-		[self setTitle:@"隐藏" forState:UIControlStateNormal];
-		[self setTitle:@"显示" forState:UIControlStateSelected];
-		self.titleLabel.font = [UIFont systemFontOfSize:10];
-	}
+    NSString *documentsPath = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
+    NSString *iconPath = [documentsPath stringByAppendingPathComponent:@"DYYY/qingping.gif"];
+    NSData *gifData = [NSData dataWithContentsOfFile:iconPath];
+    
+    if (gifData) {
+        CGImageSourceRef source = CGImageSourceCreateWithData((__bridge CFDataRef)gifData, NULL);
+        size_t imageCount = CGImageSourceGetCount(source);
+        
+        NSMutableArray<UIImage *> *imageArray = [NSMutableArray arrayWithCapacity:imageCount];
+        NSTimeInterval totalDuration = 0.0;
+        
+        for (size_t i = 0; i < imageCount; i++) {
+            CGImageRef imageRef = CGImageSourceCreateImageAtIndex(source, i, NULL);
+            UIImage *image = [UIImage imageWithCGImage:imageRef];
+            [imageArray addObject:image];
+            CFRelease(imageRef);
+            
+            // 获取当前帧的属性
+            CFDictionaryRef properties = CGImageSourceCopyPropertiesAtIndex(source, i, NULL);
+            if (properties) {
+                // 进行类型转换
+                CFDictionaryRef gifProperties = (CFDictionaryRef)CFDictionaryGetValue(properties, kCGImagePropertyGIFDictionary);
+                if (gifProperties) {
+                    // 尝试获取未限制的延迟时间，如果没有则获取常规延迟时间
+                    NSNumber *frameDuration = (__bridge NSNumber *)CFDictionaryGetValue(gifProperties, kCGImagePropertyGIFUnclampedDelayTime);
+                    if (!frameDuration) {
+                        frameDuration = (__bridge NSNumber *)CFDictionaryGetValue(gifProperties, kCGImagePropertyGIFDelayTime);
+                    }
+                    if (frameDuration) {
+                        totalDuration += frameDuration.doubleValue;
+                    }
+                }
+                CFRelease(properties);
+            }
+        }
+        CFRelease(source);
+        
+        // 创建一个UIImageView并设置动画图像
+        UIImageView *animatedImageView = [[UIImageView alloc] initWithFrame:self.bounds];
+        animatedImageView.animationImages = imageArray;
+        
+        // 设置动画持续时间为所有帧延迟时间的总和
+        animatedImageView.animationDuration = totalDuration;
+        animatedImageView.animationRepeatCount = 0; // 无限循环
+        [self addSubview:animatedImageView];
+        
+        // 调整约束或布局（如果需要）
+        animatedImageView.translatesAutoresizingMaskIntoConstraints = NO;
+        [NSLayoutConstraint activateConstraints:@[
+            [animatedImageView.centerXAnchor constraintEqualToAnchor:self.centerXAnchor],
+            [animatedImageView.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
+            [animatedImageView.widthAnchor constraintEqualToAnchor:self.widthAnchor],
+            [animatedImageView.heightAnchor constraintEqualToAnchor:self.heightAnchor]
+        ]];
+        
+        [animatedImageView startAnimating];
+    } else {
+        [self setTitle:@"隐藏" forState:UIControlStateNormal];
+        [self setTitle:@"显示" forState:UIControlStateSelected];
+        self.titleLabel.font = [UIFont systemFontOfSize:10];
+    }
 }
 - (void)handleTouchDown {
 	[self resetFadeTimer];  // 这会使按钮变为完全不透明
@@ -194,7 +313,7 @@ static void initTargetClassNames(void) {
 - (void)handlePan:(UIPanGestureRecognizer *)gesture {
 	if (self.isLocked)
 		return;
-	[self resetFadeTimer];  // 这会使按钮变为完全不透明
+	[self resetFadeTimer];
 	CGPoint translation = [gesture translationInView:self.superview];
 	CGPoint newCenter = CGPointMake(self.center.x + translation.x, self.center.y + translation.y);
 	newCenter.x = MAX(self.frame.size.width / 2, MIN(newCenter.x, self.superview.frame.size.width - self.frame.size.width / 2));
@@ -206,20 +325,57 @@ static void initTargetClassNames(void) {
 		[[NSUserDefaults standardUserDefaults] synchronize];
 	}
 }
+
 - (void)handleTap {
-	if (isAppInTransition)
-		return;
-	[self resetFadeTimer];  // 这会使按钮变为完全不透明
-	if (!self.isElementsHidden) {
-		[self hideUIElements];
-		self.isElementsHidden = YES;
-		self.selected = YES;
-	} else {
-		forceResetAllUIElements();
-		self.isElementsHidden = NO;
-		[self.hiddenViewsList removeAllObjects];
-		self.selected = NO;
-	}
+    if (isAppInTransition)
+        return;
+    [self resetFadeTimer];
+    if (!self.isElementsHidden) {
+        [self hideUIElements];
+        self.isElementsHidden = YES;
+        self.selected = YES;
+        
+        BOOL hideSpeed = [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideSpeed"];
+        if (hideSpeed) {
+            hideSpeedButton();
+        }
+    } else {
+        forceResetAllUIElements();
+        [self restoreAWEPlayInteractionProgressContainerView]; 
+        self.isElementsHidden = NO;
+        [self.hiddenViewsList removeAllObjects];
+        self.selected = NO;
+        
+        BOOL hideSpeed = [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideSpeed"];
+        if (hideSpeed) {
+            showSpeedButton();
+        }
+    }
+}
+
+- (void)restoreAWEPlayInteractionProgressContainerView {
+	if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYEnabshijianjindu"] || [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideTimeProgress"]) {
+        for (UIWindow *window in [UIApplication sharedApplication].windows) {
+            [self recursivelyRestoreAWEPlayInteractionProgressContainerViewInView:window];
+        }
+    }
+}
+
+- (void)recursivelyRestoreAWEPlayInteractionProgressContainerViewInView:(UIView *)view {
+    if ([view isKindOfClass:NSClassFromString(@"AWEPlayInteractionProgressContainerView")]) {
+		if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYEnabshijianjindu"]) {
+			// 如果设置了移除时间进度条，直接显示
+			view.hidden = NO;
+		} else {
+			// 恢复透明度
+    		view.alpha = DYGetGlobalAlpha();
+		}
+        return;
+    }
+
+    for (UIView *subview in view.subviews) {
+        [self recursivelyRestoreAWEPlayInteractionProgressContainerViewInView:subview];
+    }
 }
 - (void)handleLongPress:(UILongPressGestureRecognizer *)gesture {
 	if (gesture.state == UIGestureRecognizerStateBegan) {
@@ -228,7 +384,7 @@ static void initTargetClassNames(void) {
 		// 保存锁定状态
 		[self saveLockState];
 		NSString *toastMessage = self.isLocked ? @"按钮已锁定" : @"按钮已解锁";
-		[DYYYManager showToast:toastMessage];
+		[DYYYUtils showToast:toastMessage];
 		if (@available(iOS 10.0, *)) {
 			UIImpactFeedbackGenerator *generator = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleLight];
 			[generator prepare];
@@ -237,9 +393,38 @@ static void initTargetClassNames(void) {
 	}
 }
 - (void)hideUIElements {
-	[self.hiddenViewsList removeAllObjects];
-	[self findAndHideViews:targetClassNames];
-	self.isElementsHidden = YES;
+    [self.hiddenViewsList removeAllObjects];
+    [self findAndHideViews:targetClassNames];
+    // 新增隐藏 AWEPlayInteractionProgressContainerView 视图
+    [self hideAWEPlayInteractionProgressContainerView];
+    self.isElementsHidden = YES;
+}
+
+- (void)hideAWEPlayInteractionProgressContainerView {
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYEnabshijianjindu"] || [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideTimeProgress"]) {
+            for (UIWindow *window in [UIApplication sharedApplication].windows) {
+                    [self recursivelyHideAWEPlayInteractionProgressContainerViewInView:window];
+                }
+    }
+}
+
+- (void)recursivelyHideAWEPlayInteractionProgressContainerViewInView:(UIView *)view {
+    if ([view isKindOfClass:NSClassFromString(@"AWEPlayInteractionProgressContainerView")]) {
+		if([[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYEnabshijianjindu"]) {
+			// 如果设置了移除时间进度条
+			view.hidden = YES;
+		} else {
+			// 否则设置透明度为 0.0,可拖动
+			view.tag = DYYY_IGNORE_GLOBAL_ALPHA_TAG;
+        	view.alpha = 0.0;
+		}
+        [self.hiddenViewsList addObject:view];
+        return;
+    }
+
+    for (UIView *subview in view.subviews) {
+        [self recursivelyHideAWEPlayInteractionProgressContainerViewInView:subview];
+    }
 }
 - (void)findAndHideViews:(NSArray *)classNames {
 	for (UIWindow *window in [UIApplication sharedApplication].windows) {
@@ -265,10 +450,16 @@ static void initTargetClassNames(void) {
 	}
 }
 - (void)safeResetState {
-	forceResetAllUIElements();
-	self.isElementsHidden = NO;
-	[self.hiddenViewsList removeAllObjects];
-	self.selected = NO;
+    forceResetAllUIElements();
+    self.isElementsHidden = NO;
+    [self.hiddenViewsList removeAllObjects];
+    self.selected = NO;
+    
+    // 恢复倍速按钮的显示
+    BOOL hideSpeed = [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYHideSpeed"];
+    if (hideSpeed) {
+        showSpeedButton();
+    }
 }
 - (void)dealloc {
 	[self.checkTimer invalidate];
@@ -384,41 +575,78 @@ static void initTargetClassNames(void) {
 	});
 }
 %end
-// 修改: 使用 viewWillAppear 和 loadView 来更早地显示按钮
-%hook AWEPlayInteractionViewController
-- (void)loadView {
+
+%hook AWEElementStackView
+- (void)setAlpha:(CGFloat)alpha {
     %orig;
-    // 提前准备按钮显示
     if (hideButton) {
-        hideButton.hidden = NO;
-        hideButton.alpha = 0.5;
-    }
-}
-- (void)viewWillAppear:(BOOL)animated {
-    %orig;
-    isInPlayInteractionVC = YES;
-    // 立即显示按钮
-    if (hideButton) {
-        hideButton.hidden = NO;
-        hideButton.alpha = 0.5;
-    }
-}
-- (void)viewDidAppear:(BOOL)animated {
-    %orig;
-    // 再次确保按钮可见
-    if (hideButton) {
-        hideButton.hidden = NO;
-    }
-}
-- (void)viewWillDisappear:(BOOL)animated {
-    %orig;
-    isInPlayInteractionVC = NO;
-    // 立即隐藏按钮
-    if (hideButton) {
-        hideButton.hidden = YES;
+        if (alpha == 0) {
+            isCommentViewVisible = YES;
+        } else if (alpha == 1) {
+            isCommentViewVisible = NO;
+        }
     }
 }
 %end
+
+%hook AWECommentContainerViewController
+
+- (void)viewWillAppear:(BOOL)animated {
+    %orig;
+    isCommentViewVisible = YES;
+    updateClearButtonVisibility();
+}
+
+- (void)viewDidAppear:(BOOL)animated {
+    %orig;
+    isCommentViewVisible = YES;
+    updateClearButtonVisibility();
+}
+
+- (void)viewWillDisappear:(BOOL)animated {
+    %orig;
+    updateClearButtonVisibility();
+}
+
+- (void)viewDidDisappear:(BOOL)animated {
+    %orig;
+    isCommentViewVisible = NO;
+    updateClearButtonVisibility();
+}
+
+%end
+
+%hook AWEPlayInteractionViewController
+- (void)loadView {
+    %orig;
+    if (hideButton) {
+        hideButton.hidden = NO;
+        hideButton.alpha = 0.5;
+    }
+}
+
+- (void)viewWillAppear:(BOOL)animated {
+    %orig;
+    isInPlayInteractionVC = YES;
+    isInteractionViewVisible = YES;
+    if (hideButton) {
+        hideButton.hidden = NO;
+        hideButton.alpha = 0.5;
+    }
+}
+
+- (void)viewDidAppear:(BOOL)animated {
+    %orig;
+    isInteractionViewVisible = YES;
+}
+
+- (void)viewWillDisappear:(BOOL)animated {
+    %orig;
+    isInPlayInteractionVC = NO;
+    isInteractionViewVisible = NO;
+}
+%end
+
 %hook AWEFeedContainerViewController
 - (void)aweme:(id)arg1 currentIndexWillChange:(NSInteger)arg2 {
 	if (hideButton && hideButton.isElementsHidden) {
@@ -444,7 +672,6 @@ static void initTargetClassNames(void) {
     BOOL result = %orig;
     initTargetClassNames();
     
-    // 立即创建按钮，不使用异步操作
     BOOL isEnabled = [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYEnableFloatClearButton"];
     if (isEnabled) {
         if (hideButton) {
@@ -465,24 +692,39 @@ static void initTargetClassNames(void) {
             hideButton.center = CGPointMake(screenWidth - buttonSize/2 - 5, screenHeight / 2);
         }
         
-        // 初始状态下隐藏按钮
         hideButton.hidden = YES;
         [getKeyWindow() addSubview:hideButton];
         
-        // 添加观察者以确保窗口变化时按钮仍然可见
         [[NSNotificationCenter defaultCenter] addObserverForName:UIWindowDidBecomeKeyNotification
                                                          object:nil
                                                           queue:[NSOperationQueue mainQueue]
                                                      usingBlock:^(NSNotification * _Nonnull notification) {
-            if (isInPlayInteractionVC && hideButton && hideButton.hidden) {
-                hideButton.hidden = NO;
+            if (isInteractionViewVisible && !isCommentViewVisible && !isForceHidden) {
+                updateClearButtonVisibility();
             }
+        }];
+        
+        [[NSNotificationCenter defaultCenter] addObserverForName:UIApplicationDidBecomeActiveNotification
+                                                         object:nil
+                                                          queue:[NSOperationQueue mainQueue]
+                                                     usingBlock:^(NSNotification * _Nonnull notification) {
+            isAppActive = YES;
+            updateClearButtonVisibility();
+        }];
+        
+        [[NSNotificationCenter defaultCenter] addObserverForName:UIApplicationWillResignActiveNotification
+                                                         object:nil
+                                                          queue:[NSOperationQueue mainQueue]
+                                                     usingBlock:^(NSNotification * _Nonnull notification) {
+            isAppActive = NO;
+            updateClearButtonVisibility();
         }];
     }
     
     return result;
 }
 %end
+
 %ctor {
 	signal(SIGSEGV, SIG_IGN);
 }

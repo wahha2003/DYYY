@@ -1,168 +1,277 @@
 #import "DYYYABTestHook.h"
 #import <objc/runtime.h>
 
-// 声明ABTestManager接口
 @interface AWEABTestManager : NSObject
-@property(retain, nonatomic) NSDictionary *abTestData;
 @property(retain, nonatomic) NSMutableDictionary *consistentABTestDic;
+@property(copy, nonatomic) NSDictionary *abTestData;
 @property(copy, nonatomic) NSDictionary *performanceReversalDic;
+@property(nonatomic) BOOL performanceReversalEnabled;
+@property(nonatomic) BOOL handledNetFirstBackNotification;
+@property(nonatomic) BOOL lastUpdateByIncrement;
+@property(nonatomic) BOOL shouldPrintLog;
+@property(nonatomic) BOOL localABSettingEnabled;
+- (void)fetchConfiguration:(id)arg1;
+- (void)fetchConfigurationWithRetry:(BOOL)arg1 completion:(id)arg2;
+- (void)incrementalUpdateData:(id)arg1 unchangedKeyList:(id)arg2;
+- (void)overrideABTestData:(id)arg1 needCleanCache:(BOOL)arg2;
 - (void)setAbTestData:(id)arg1;
 - (void)_saveABTestData:(id)arg1;
-- (id)abTestData;
+- (id)getValueOfConsistentABTestWithKey:(id)arg1;
 + (id)sharedManager;
 @end
 
-// 全局变量实现
-BOOL abTestBlockEnabled = NO;
-NSDictionary *gFixedABTestData = nil;
-dispatch_once_t onceToken;
-BOOL gDataLoaded = NO;
-static NSDate *lastLoadAttemptTime = nil;
-static const NSTimeInterval kMinLoadInterval = 60.0;
+static BOOL s_abTestBlockEnabled = NO;
+static BOOL s_isApplyingFixedData = NO;
+static NSDictionary *s_localABTestData = nil;
 
-// 从指定JSON文件加载ABTest数据，仅当需要时加载
-void ensureABTestDataLoaded(void) {
-    if (gDataLoaded) return;
-    
-    dispatch_once(&onceToken, ^{
-        // 获取Documents目录路径
-        NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-        NSString *documentsDirectory = [paths firstObject];
-        
-        // 修改为DYYY子文件夹下的路径
-        NSString *dyyyFolderPath = [documentsDirectory stringByAppendingPathComponent:@"DYYY"];
-        NSString *jsonFilePath = [dyyyFolderPath stringByAppendingPathComponent:@"abtest_data_fixed.json"];
-        
-        // 确保DYYY目录存在
-        NSFileManager *fileManager = [NSFileManager defaultManager];
-        if (![fileManager fileExistsAtPath:dyyyFolderPath]) {
-            NSError *error = nil;
-            [fileManager createDirectoryAtPath:dyyyFolderPath withIntermediateDirectories:YES attributes:nil error:&error];
-            if (error) {
-                NSLog(@"[DYYY] 创建DYYY目录失败: %@", error.localizedDescription);
-            }
+static dispatch_once_t s_loadOnceToken;
+static dispatch_queue_t s_abTestHookQueue;
+static dispatch_once_t s_queueOnceToken;
+static void *s_queueSpecificKey = &s_queueSpecificKey;
+
+static dispatch_queue_t DYYYABTestQueue() {
+    dispatch_once(&s_queueOnceToken, ^{
+        if (!s_abTestHookQueue) {
+            s_abTestHookQueue = dispatch_queue_create("com.dyyy.abtesthook.queue", DISPATCH_QUEUE_SERIAL);
+            // Mark the queue with specific key for reentrancy checks
+            dispatch_queue_set_specific(s_abTestHookQueue, s_queueSpecificKey, (void *)1, NULL);
         }
-        
-        NSError *error = nil;
-        NSData *jsonData = [NSData dataWithContentsOfFile:jsonFilePath options:0 error:&error];
-        
-        if (jsonData) {
-            NSDictionary *loadedData = [NSJSONSerialization JSONObjectWithData:jsonData 
-                                                                      options:0 
-                                                                        error:&error];
-            if (loadedData && !error) {
-                // 成功加载数据，保存到全局变量
-                gFixedABTestData = [loadedData copy];
-                gDataLoaded = YES;
-                return;
-            }
-        }
-        
-        // 如果加载失败，使用空字典
-        gFixedABTestData = @{};
-        gDataLoaded = YES;
+    });
+    return s_abTestHookQueue;
+}
+
+static void DYYYQueueSync(dispatch_block_t block) {
+    dispatch_queue_t queue = DYYYABTestQueue();
+    if (dispatch_get_specific(s_queueSpecificKey)) {
+        block();
+    } else {
+        dispatch_sync(queue, block);
+    }
+}
+
+@implementation DYYYABTestHook
+
+/**
+ * 判断当前是否为覆写模式
+ * 通过DYYYABTestModeString判断，返回YES表示覆写模式，NO表示替换模式
+ * 转换为类方法
+ */
++ (BOOL)isPatchMode {
+    NSString *savedMode = [[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYABTestModeString"];
+    return ![savedMode isEqualToString:@"替换模式：忽略原配置，写入新数据"];
+}
+
+/**
+ * 获取本地文件是否已加载的状态
+ * 使用 dispatch_sync 在队列上同步读取 s_localABTestData 的状态
+ */
++ (BOOL)isLocalConfigLoaded {
+    __block BOOL loaded = NO;
+    DYYYQueueSync(^{
+        loaded = (s_localABTestData != nil);
+    });
+    return loaded;
+}
+
+/**
+ * 获取禁止下发配置的状态
+ * 使用 dispatch_sync 在队列上同步读取状态
+ */
++ (BOOL)isABTestBlockEnabled {
+    __block BOOL enabled = NO;
+    DYYYQueueSync(^{
+        enabled = s_abTestBlockEnabled;
+    });
+    return enabled;
+}
+
+/**
+ * 设置禁止下发配置的状态
+ * 使用 dispatch_async 在队列上异步设置状态
+ */
++ (void)setABTestBlockEnabled:(BOOL)enabled {
+    dispatch_async(DYYYABTestQueue(), ^{
+        s_abTestBlockEnabled = enabled;
     });
 }
 
-// 优化防止频繁加载
-NSDictionary* loadFixedABTestData(void) {
-    // 检查是否已加载数据
-    if (gDataLoaded) {
-        return gFixedABTestData;
-    }
-    
-    // 限制加载频率，避免短时间内多次尝试解析大型JSON
-    NSDate *now = [NSDate date];
-    if (lastLoadAttemptTime && [now timeIntervalSinceDate:lastLoadAttemptTime] < kMinLoadInterval) {
-        return gFixedABTestData;
-    }
-    
-    // 更新最后尝试时间
-    lastLoadAttemptTime = now;
-    
-    // 调用已有的加载函数
-    ensureABTestDataLoaded();
-    return gFixedABTestData;
+/**
+ * 清除本地加载的ABTest数据，为下次调用 loadLocalABTestConfig 做准备
+ * 使用 dispatch_async 在队列上异步清除数据
+ */
++ (void)cleanLocalABTestData {
+    dispatch_async(DYYYABTestQueue(), ^{
+        s_localABTestData = nil;
+        s_loadOnceToken = 0;
+        NSLog(@"[DYYY] 本地ABTest配置已清除");
+    });
 }
 
-// 替代空数据函数，返回固定数据 - 优化版本
-static NSDictionary *fixedABTestData(void) {
-    // 如果禁用了热更新拦截，返回nil让原始实现处理
-    if (!abTestBlockEnabled) {
-        return nil;
-    }
-    
-    // 延迟加载 - 仅当需要时才实际解析JSON
-    if (!gDataLoaded) {
-        ensureABTestDataLoaded();
-    }
-    
-    return gFixedABTestData;
+/**
+ * 加载本地ABTest配置文件
+ * 只加载文件和处理数据，不负责应用
+ * 使用 dispatch_once 确保只加载一次
+ * 整个加载过程在队列上异步执行
+ */
++ (void)loadLocalABTestConfig {
+    dispatch_async(DYYYABTestQueue(), ^{
+        dispatch_once(&s_loadOnceToken, ^{
+            // 获取存储路径
+            NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+            NSString *documentsDirectory = [paths firstObject];
+            NSString *dyyyFolderPath = [documentsDirectory stringByAppendingPathComponent:@"DYYY"];
+            NSString *jsonFilePath = [dyyyFolderPath stringByAppendingPathComponent:@"abtest_data_fixed.json"];
+
+            // 确保目录存在
+            NSFileManager *fileManager = [NSFileManager defaultManager];
+            if (![fileManager fileExistsAtPath:dyyyFolderPath]) {
+                NSError *error = nil;
+                [fileManager createDirectoryAtPath:dyyyFolderPath withIntermediateDirectories:YES attributes:nil error:&error];
+                if (error) {
+                    NSLog(@"[DYYY] 创建DYYY目录失败: %@", error.localizedDescription);
+                }
+            }
+
+            // 读取本地配置文件
+            NSError *error = nil;
+            NSData *jsonData = [NSData dataWithContentsOfFile:jsonFilePath options:0 error:&error];
+
+            if (jsonData) {
+                NSDictionary *loadedData = [NSJSONSerialization JSONObjectWithData:jsonData options:0 error:&error];
+                if (loadedData && !error) {
+                    s_localABTestData = [loadedData copy];
+                    NSLog(@"[DYYY] ABTest本地配置已从文件加载成功");
+                    return;
+                } else {
+                    NSLog(@"[DYYY] ABTest本地配置解析失败: %@", error.localizedDescription);
+                }
+            } else {
+                NSLog(@"[DYYY] ABTest本地配置文件不存在或无法读取");
+            }
+
+            // 加载失败时的处理
+            s_localABTestData = nil;
+        });
+    });
 }
 
-// 获取当前ABTest数据 - 优化版本
-NSDictionary *getCurrentABTestData(void) {
-    // 如果启用了拦截且已加载固定数据，优先返回固定数据
-    if (abTestBlockEnabled) {
-        if (!gDataLoaded) {
-            ensureABTestDataLoaded();
+/**
+ * 应用本地ABTest配置数据 (负责根据模式处理并应用到 Manager)
+ * 包含是否应该应用的条件判断
+ * 整个应用过程在队列上异步执行
+ */
++ (void)applyFixedABTestData {
+    dispatch_async(DYYYABTestQueue(), ^{
+        if (!s_abTestBlockEnabled || !s_localABTestData) {
+            NSLog(@"[DYYY] 不满足应用本地配置的条件 (禁止下发=%@, 数据是否为空=%@)",
+                s_abTestBlockEnabled ? @"开启" : @"关闭",
+                s_localABTestData ? @"否" : @"是");
+            s_isApplyingFixedData = NO; // 确保标志关闭
+            return;
         }
-        return gFixedABTestData;
-    }
-    
-    // 否则从Manager获取当前数据
-    AWEABTestManager *manager = [%c(AWEABTestManager) sharedManager];
-    if (!manager) {
-        return nil;
-    }
-    
-    NSDictionary *currentData = [manager abTestData];
-    return currentData;
+
+        AWEABTestManager *manager = [%c(AWEABTestManager) sharedManager];
+        if (!manager) {
+            NSLog(@"[DYYY] 无法应用本地配置：AWEABTestManager 实例不可用");
+            s_isApplyingFixedData = NO; // 确保标志关闭
+            return;
+        }
+
+        BOOL usingPatchMode = [self isPatchMode];
+        NSDictionary *dataToApply = nil;
+
+        if (usingPatchMode) {
+            // 覆写模式：本地配置合并现有配置
+            NSMutableDictionary *mergedData = [NSMutableDictionary dictionaryWithDictionary:[manager abTestData] ?: @{}];
+            [mergedData addEntriesFromDictionary:s_localABTestData];
+            dataToApply = [mergedData copy];
+        } else {
+            // 替换模式：直接使用本地配置
+            dataToApply = [s_localABTestData copy];
+        }
+
+        // 设置状态标志，表明接下来对 setAbTestData: 的调用是来自我们 Hook 的应用逻辑
+        s_isApplyingFixedData = YES;
+
+        // 应用数据到 Manager
+        // 这里的调用发生在队列上，Hook 内部的检查也会在队列上同步进行，是安全的。
+        [manager setAbTestData:dataToApply];
+
+        // 重置状态标志
+        s_isApplyingFixedData = NO;
+
+        NSLog(@"[DYYY] ABTest本地配置已应用");
+    });
 }
 
-// 添加缓存策略
-static NSMutableDictionary *gCaseCache = nil;
+/**
+ * 获取当前ABTest数据
+ */
++ (NSDictionary *)getCurrentABTestData {
+    AWEABTestManager *manager = [%c(AWEABTestManager) sharedManager];
+    return manager ? [manager abTestData] : nil;
+}
 
-// Hook AWEABTestManager类
+@end
+
 %hook AWEABTestManager
 
-// 拦截获取 ABTest 数据的方法
-- (id)abTestData {
-    if (!abTestBlockEnabled) {
-        return %orig;
-    }
-    
-    // 延迟加载数据，仅当需要时才加载
-    if (!gDataLoaded) {
-        ensureABTestDataLoaded();
-    }
-    
-    return gFixedABTestData ?: %orig;
-}
+/**
+ * Hook: 设置ABTest数据
+ * 阻止在禁止下发模式下更新数据，除非当前正在应用本地配置
+ * 使用 dispatch_sync 在队列上同步检查状态标志
+ */
+- (void)setAbTestData:(id)data {
+    __block BOOL shouldBlock = NO;
+    DYYYQueueSync(^{
+        // 在队列上安全地检查禁止下发标志 和 正在应用本地数据的标志
+        // 如果禁止下发开启 并且 不是正在应用本地数据，则阻止
+        if (s_abTestBlockEnabled && !s_isApplyingFixedData) {
+            shouldBlock = YES;
+        }
+    });
 
-// 拦截设置 ABTest 数据的方法
-- (void)setAbTestData:(id)arg1 {
-    if (abTestBlockEnabled) {
-        return; // 禁用热更新时不执行
-    }
-    %orig;
-}
-
-// 拦截增量数据更新
-- (void)incrementalUpdateData:(id)arg1 unchangedKeyList:(id)arg2 {
-    if (abTestBlockEnabled) {
+    if (shouldBlock) {
+        NSLog(@"[DYYY] 阻止ABTest数据更新 (启用了禁止下发配置且非本地应用)");
         return;
     }
     %orig;
 }
 
-// 拦截网络获取配置方法
-- (void)fetchConfigurationWithRetry:(BOOL)arg1 completion:(id)arg2 {
-    if (abTestBlockEnabled) {
-        // 如果有完成回调，调用它但不更新数据
-        if (arg2 && [arg2 isKindOfClass:%c(NSBlock)]) {
+/**
+ * Hook: 增量更新ABTest数据
+ * 在禁止下发模式下阻止增量更新
+ * 使用 dispatch_sync 在队列上同步检查状态
+ */
+- (void)incrementalUpdateData:(id)data unchangedKeyList:(id)keyList {
+    __block BOOL shouldBlock = NO;
+    DYYYQueueSync(^{
+        shouldBlock = s_abTestBlockEnabled;
+    });
+
+    if (shouldBlock) {
+        NSLog(@"[DYYY] 阻止增量更新ABTest数据 (启用了禁止下发配置)");
+        return;
+    }
+    %orig;
+}
+
+/**
+ * Hook: 从网络获取配置(带重试)
+ * 在禁止下发模式下拦截网络请求，并立即返回空结果
+ * 使用 dispatch_sync 在队列上同步检查状态
+ */
+- (void)fetchConfigurationWithRetry:(BOOL)retry completion:(id)completion {
+    __block BOOL shouldBlock = NO;
+    DYYYQueueSync(^{
+        shouldBlock = s_abTestBlockEnabled;
+    });
+
+    if (shouldBlock) {
+        NSLog(@"[DYYY] 阻止从网络获取ABTest配置 (启用了禁止下发配置)");
+        if (completion && [completion isKindOfClass:%c(NSBlock)]) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                ((void (^)(id))arg2)(nil);
+                ((void (^)(id))completion)(nil);
             });
         }
         return;
@@ -170,17 +279,55 @@ static NSMutableDictionary *gCaseCache = nil;
     %orig;
 }
 
-// 拦截另一个配置方法
+/**
+ * Hook: 从网络获取配置
+ * 在禁止下发模式下阻止网络请求
+ * 使用 dispatch_sync 在队列上同步检查状态
+ */
 - (void)fetchConfiguration:(id)arg1 {
-    if (abTestBlockEnabled) {
+    __block BOOL shouldBlock = NO;
+    DYYYQueueSync(^{
+        shouldBlock = s_abTestBlockEnabled;
+    });
+
+    if (shouldBlock) {
+        NSLog(@"[DYYY] 阻止从网络获取ABTest配置 (启用了禁止下发配置)");
         return;
     }
     %orig;
 }
 
-// 拦截重写ABTest数据的方法
-- (void)overrideABTestData:(id)arg1 needCleanCache:(BOOL)arg2 {
-    if (abTestBlockEnabled) {
+/**
+ * Hook: 重写ABTest数据
+ * 在禁止下发模式下阻止覆盖数据
+ * 使用 dispatch_sync 在队列上同步检查状态
+ */
+- (void)overrideABTestData:(id)data needCleanCache:(BOOL)cleanCache {
+    __block BOOL shouldBlock = NO;
+    DYYYQueueSync(^{
+        shouldBlock = s_abTestBlockEnabled;
+    });
+
+    if (shouldBlock) {
+        NSLog(@"[DYYY] 阻止重写ABTest数据 (启用了禁止下发配置)");
+        return;
+    }
+    %orig;
+}
+
+/**
+ * Hook: 保存ABTest数据
+ * 在禁止下发模式下阻止保存
+ * 使用 dispatch_sync 在队列上同步检查状态
+ */
+- (void)_saveABTestData:(id)data {
+    __block BOOL shouldBlock = NO;
+    DYYYQueueSync(^{
+        shouldBlock = s_abTestBlockEnabled;
+    });
+
+    if (shouldBlock) {
+        NSLog(@"[DYYY] 阻止保存ABTest数据 (启用了禁止下发配置)");
         return;
     }
     %orig;
@@ -189,7 +336,22 @@ static NSMutableDictionary *gCaseCache = nil;
 %end
 
 %ctor {
-    // 初始化时加载设置
+    // 预初始化队列以避免早期访问为 NULL
+    DYYYABTestQueue();
+
     %init;
-    abTestBlockEnabled = [[NSUserDefaults standardUserDefaults] boolForKey:@"ABTestBlockEnabled"];
+
+    // 在队列上异步读取初始状态并加载/应用配置
+    dispatch_async(DYYYABTestQueue(), ^{
+        s_abTestBlockEnabled = [[NSUserDefaults standardUserDefaults] boolForKey:@"DYYYABTestBlockEnabled"];
+
+        NSString *currentMode = [DYYYABTestHook isPatchMode] ? @"覆写模式" : @"替换模式";
+
+        NSLog(@"[DYYY] ABTest Hook已启动: 禁止下发=%@, 当前模式=%@",
+              s_abTestBlockEnabled ? @"开启" : @"关闭",
+              currentMode);
+
+        [DYYYABTestHook loadLocalABTestConfig];
+        [DYYYABTestHook applyFixedABTestData];
+    });
 }
