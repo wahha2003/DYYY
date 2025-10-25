@@ -278,6 +278,8 @@ static CGFloat gStartVal = 0.0;
 - (void)speedButtonTapped:(id)sender;
 - (void)buttonTouchDown:(id)sender;
 - (void)buttonTouchUp:(id)sender;
+- (id) leftContainerView;
+- (id) rightContainerView;
 @end
 
 @interface AWEFeedVideoButton : UIButton

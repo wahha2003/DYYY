@@ -5356,99 +5356,69 @@ static CGFloat customTabBarHeight() {
 }
 %end
 
-%hook AWEElementStackView
-static CGFloat currentScale = 1.0;
-- (void)layoutSubviews {
+%hook AWEPlayInteractionViewController
+
+- (void)viewDidLayoutSubviews {
     %orig;
-    UIViewController *viewController = [DYYYUtils firstAvailableViewControllerFromView:self];
-    if ([viewController isKindOfClass:%c(AWECommentInputViewController)]) {
-        NSString *transparentValue = DYYYGetString(@"DYYYGlobalTransparency");
-        if (transparentValue.length > 0) {
-            CGFloat alphaValue = transparentValue.floatValue;
-            if (alphaValue >= 0.0 && alphaValue <= 1.0) {
-                self.alpha = alphaValue;
+    
+    UIView *leftContainerView = [self leftContainerView];
+    UIView *rightContainerView = [self rightContainerView];
+
+    // ------- 左侧元素缩放 -------
+    if (leftContainerView) {
+        NSString *scaleValue = [[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYNicknameScale"];
+        if (scaleValue.length > 0) {
+            CGFloat scale = [scaleValue floatValue];
+            leftContainerView.transform = CGAffineTransformIdentity;
+
+            if (scale > 0 && scale != 1.0) {
+                NSArray *subviews = [leftContainerView.subviews copy];
+                CGFloat ty = 0;
+                for (UIView *view in subviews) {
+                    CGFloat viewHeight = view.frame.size.height;
+                    ty += (viewHeight - viewHeight * scale) / 2;
+                }
+
+                CGFloat frameWidth = leftContainerView.frame.size.width;
+                CGFloat left_tx = (frameWidth - frameWidth * scale) / 2 - frameWidth * (1 - scale);
+
+                CGAffineTransform newTransform = CGAffineTransformMakeScale(scale, scale);
+                newTransform = CGAffineTransformTranslate(newTransform, left_tx / scale, ty / scale);
+                leftContainerView.transform = newTransform;
             }
         }
     }
 
-    if ([viewController isKindOfClass:%c(AWEPlayInteractionViewController)]) {
-        // 右侧元素的处理逻辑
-        if ([self.accessibilityLabel isEqualToString:@"right"] || [DYYYUtils containsSubviewOfClass:NSClassFromString(@"AWEPlayInteractionUserAvatarView") inView:self]) {
-            NSString *scaleValue = [[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYElementScale"];
-            self.transform = CGAffineTransformIdentity;
-            if (scaleValue.length > 0) {
-                CGFloat scale = [scaleValue floatValue];
-                if (currentScale != scale)
-                    currentScale = scale;
-                if (scale > 0 && scale != 1.0) {
-                    NSArray *subviews = [self.subviews copy];
-                    CGFloat ty = 0;
-                    for (UIView *view in subviews) {
-                        CGFloat viewHeight = view.frame.size.height;
-                        ty += (viewHeight - viewHeight * scale) / 2;
-                    }
-                    CGFloat frameWidth = self.frame.size.width;
-                    CGFloat right_tx = (frameWidth - frameWidth * scale) / 2;
-                    self.transform = CGAffineTransformMake(scale, 0, 0, scale, right_tx, ty);
-                } else {
-                    self.transform = CGAffineTransformIdentity;
+    // ------- 右侧元素缩放 -------
+    if (rightContainerView) {
+        NSString *scaleValue = [[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYElementScale"];
+        static CGFloat currentScale = 1.0;
+        rightContainerView.transform = CGAffineTransformIdentity;
+
+        if (scaleValue.length > 0) {
+            CGFloat scale = [scaleValue floatValue];
+            if (currentScale != scale)
+                currentScale = scale;
+
+            if (scale > 0 && scale != 1.0) {
+                NSArray *subviews = [rightContainerView.subviews copy];
+                CGFloat ty = 0;
+                for (UIView *view in subviews) {
+                    CGFloat viewHeight = view.frame.size.height;
+                    ty += (viewHeight - viewHeight * scale) / 2;
                 }
-            }
-        }
-        // 左侧元素的处理逻辑
-        else if ([self.accessibilityLabel isEqualToString:@"left"] || [DYYYUtils containsSubviewOfClass:NSClassFromString(@"AWEFeedAnchorContainerView") inView:self]) {
-            NSString *scaleValue = [[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYNicknameScale"];
-            if (scaleValue.length > 0) {
-                CGFloat scale = [scaleValue floatValue];
-                self.transform = CGAffineTransformIdentity;
-                if (scale > 0 && scale != 1.0) {
-                    NSArray *subviews = [self.subviews copy];
-                    CGFloat ty = 0;
-                    for (UIView *view in subviews) {
-                        CGFloat viewHeight = view.frame.size.height;
-                        ty += (viewHeight - viewHeight * scale) / 2;
-                    }
-                    CGFloat frameWidth = self.frame.size.width;
-                    CGFloat left_tx = (frameWidth - frameWidth * scale) / 2 - frameWidth * (1 - scale);
-                    CGAffineTransform newTransform = CGAffineTransformMakeScale(scale, scale);
-                    newTransform = CGAffineTransformTranslate(newTransform, left_tx / scale, ty / scale);
-                    self.transform = newTransform;
-                }
+
+                CGFloat frameWidth = rightContainerView.frame.size.width;
+                CGFloat right_tx = (frameWidth - frameWidth * scale) / 2;
+
+                rightContainerView.transform = CGAffineTransformMake(scale, 0, 0, scale, right_tx, ty);
             }
         }
     }
 }
-- (NSArray<__kindof UIView *> *)arrangedSubviews {
 
-    UIViewController *viewController = [DYYYUtils firstAvailableViewControllerFromView:self];
-    if ([viewController isKindOfClass:%c(AWEPlayInteractionViewController)]) {
-
-        if ([self.accessibilityLabel isEqualToString:@"left"] || [DYYYUtils containsSubviewOfClass:NSClassFromString(@"AWEFeedAnchorContainerView") inView:self]) {
-            NSString *scaleValue = [[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYNicknameScale"];
-            if (scaleValue.length > 0) {
-                CGFloat scale = [scaleValue floatValue];
-                self.transform = CGAffineTransformIdentity;
-                if (scale > 0 && scale != 1.0) {
-                    NSArray *subviews = [self.subviews copy];
-                    CGFloat ty = 0;
-                    for (UIView *view in subviews) {
-                        CGFloat viewHeight = view.frame.size.height;
-                        ty += (viewHeight - viewHeight * scale) / 2;
-                    }
-                    CGFloat frameWidth = self.frame.size.width;
-                    CGFloat left_tx = (frameWidth - frameWidth * scale) / 2 - frameWidth * (1 - scale);
-                    CGAffineTransform newTransform = CGAffineTransformMakeScale(scale, scale);
-                    newTransform = CGAffineTransformTranslate(newTransform, left_tx / scale, ty / scale);
-                    self.transform = newTransform;
-                }
-            }
-        }
-    }
-
-    NSArray *originalSubviews = %orig;
-    return originalSubviews;
-}
 %end
+
 
 %hook AWELiveNewPreStreamViewController
 static char kDyLastAppliedScaleKey;
