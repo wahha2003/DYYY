@@ -5253,6 +5253,61 @@ static CGFloat customTabBarHeight() {
 - (void)viewDidLayoutSubviews {
     %orig;
 
+    UIView *leftContainerView = [self leftContainerView];
+    UIView *rightContainerView = [self rightContainerView];
+
+    // ------- 左侧元素缩放 -------
+    if (leftContainerView) {
+        NSString *scaleValue = [[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYNicknameScale"];
+        if (scaleValue.length > 0) {
+            CGFloat scale = [scaleValue floatValue];
+            leftContainerView.transform = CGAffineTransformIdentity;
+
+            if (scale > 0 && scale != 1.0) {
+                NSArray *subviews = [leftContainerView.subviews copy];
+                CGFloat ty = 0;
+                for (UIView *view in subviews) {
+                    CGFloat viewHeight = view.frame.size.height;
+                    ty += (viewHeight - viewHeight * scale) / 2;
+                }
+
+                CGFloat frameWidth = leftContainerView.frame.size.width;
+                CGFloat left_tx = (frameWidth - frameWidth * scale) / 2 - frameWidth * (1 - scale);
+
+                CGAffineTransform newTransform = CGAffineTransformMakeScale(scale, scale);
+                newTransform = CGAffineTransformTranslate(newTransform, left_tx / scale, ty / scale);
+                leftContainerView.transform = newTransform;
+            }
+        }
+    }
+
+    // ------- 右侧元素缩放 -------
+    if (rightContainerView) {
+        NSString *scaleValue = [[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYElementScale"];
+        static CGFloat currentScale = 1.0;
+        rightContainerView.transform = CGAffineTransformIdentity;
+
+        if (scaleValue.length > 0) {
+            CGFloat scale = [scaleValue floatValue];
+            if (currentScale != scale)
+                currentScale = scale;
+
+            if (scale > 0 && scale != 1.0) {
+                NSArray *subviews = [rightContainerView.subviews copy];
+                CGFloat ty = 0;
+                for (UIView *view in subviews) {
+                    CGFloat viewHeight = view.frame.size.height;
+                    ty += (viewHeight - viewHeight * scale) / 2;
+                }
+
+                CGFloat frameWidth = rightContainerView.frame.size.width;
+                CGFloat right_tx = (frameWidth - frameWidth * scale) / 2;
+
+                rightContainerView.transform = CGAffineTransformMake(scale, 0, 0, scale, right_tx, ty);
+            }
+        }
+    }
+
     if (!DYYYGetBool(@"DYYYEnableFullScreen")) {
         return;
     }
@@ -5355,70 +5410,6 @@ static CGFloat customTabBarHeight() {
     }
 }
 %end
-
-%hook AWEPlayInteractionViewController
-
-- (void)viewDidLayoutSubviews {
-    %orig;
-    
-    UIView *leftContainerView = [self leftContainerView];
-    UIView *rightContainerView = [self rightContainerView];
-
-    // ------- 左侧元素缩放 -------
-    if (leftContainerView) {
-        NSString *scaleValue = [[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYNicknameScale"];
-        if (scaleValue.length > 0) {
-            CGFloat scale = [scaleValue floatValue];
-            leftContainerView.transform = CGAffineTransformIdentity;
-
-            if (scale > 0 && scale != 1.0) {
-                NSArray *subviews = [leftContainerView.subviews copy];
-                CGFloat ty = 0;
-                for (UIView *view in subviews) {
-                    CGFloat viewHeight = view.frame.size.height;
-                    ty += (viewHeight - viewHeight * scale) / 2;
-                }
-
-                CGFloat frameWidth = leftContainerView.frame.size.width;
-                CGFloat left_tx = (frameWidth - frameWidth * scale) / 2 - frameWidth * (1 - scale);
-
-                CGAffineTransform newTransform = CGAffineTransformMakeScale(scale, scale);
-                newTransform = CGAffineTransformTranslate(newTransform, left_tx / scale, ty / scale);
-                leftContainerView.transform = newTransform;
-            }
-        }
-    }
-
-    // ------- 右侧元素缩放 -------
-    if (rightContainerView) {
-        NSString *scaleValue = [[NSUserDefaults standardUserDefaults] objectForKey:@"DYYYElementScale"];
-        static CGFloat currentScale = 1.0;
-        rightContainerView.transform = CGAffineTransformIdentity;
-
-        if (scaleValue.length > 0) {
-            CGFloat scale = [scaleValue floatValue];
-            if (currentScale != scale)
-                currentScale = scale;
-
-            if (scale > 0 && scale != 1.0) {
-                NSArray *subviews = [rightContainerView.subviews copy];
-                CGFloat ty = 0;
-                for (UIView *view in subviews) {
-                    CGFloat viewHeight = view.frame.size.height;
-                    ty += (viewHeight - viewHeight * scale) / 2;
-                }
-
-                CGFloat frameWidth = rightContainerView.frame.size.width;
-                CGFloat right_tx = (frameWidth - frameWidth * scale) / 2;
-
-                rightContainerView.transform = CGAffineTransformMake(scale, 0, 0, scale, right_tx, ty);
-            }
-        }
-    }
-}
-
-%end
-
 
 %hook AWELiveNewPreStreamViewController
 static char kDyLastAppliedScaleKey;
